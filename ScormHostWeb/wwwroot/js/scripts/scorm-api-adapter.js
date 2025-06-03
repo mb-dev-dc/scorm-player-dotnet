@@ -1,28 +1,169 @@
-// SCORM 1.2 and 2004 API Adapter
-// Basic SCORM 1.2 API stub for testing
+// SCORM 1.2 and 2004 API Adapter for Development
+// Enhanced implementation with console logging and basic data storage
+
+// Store SCORM data during the session
+const scormData = {
+  "cmi.core.lesson_status": "not attempted",
+  "cmi.core.score.raw": "0",
+  "cmi.core.score.min": "0",
+  "cmi.core.score.max": "100",
+  "cmi.core.lesson_location": "",
+  "cmi.suspend_data": "",
+  "cmi.core.entry": "ab-initio",
+  "cmi.core.exit": "",
+  "cmi.core.session_time": "00:00:00",
+  // SCORM 2004 specific
+  "cmi.completion_status": "not attempted",
+  "cmi.success_status": "unknown",
+  "cmi.score.scaled": "0"
+};
+
+// Helper function to log API calls during development
+function logApiCall(version, func, args, result) {
+  console.log(`SCORM ${version} | ${func}(${args ? args : ''}) => ${result}`);
+}
+
+// Extract query parameters (for courseId, userId etc.)
+function getQueryParams() {
+  const params = {};
+  const queryString = window.location.search;
+  const urlParams = new URLSearchParams(queryString);
+  
+  // Common parameters we might need
+  params.courseId = urlParams.get('courseId');
+  params.userId = urlParams.get('userId');
+  params.attemptId = urlParams.get('attemptId');
+  
+  return params;
+}
+
+// Save data to server (development stub)
+async function saveToServer() {
+  try {
+    const params = getQueryParams();
+    console.log("Would save to server:", { 
+      userId: params.userId, 
+      courseId: params.courseId,
+      data: scormData 
+    });
+    
+    // In a real implementation, this would be an API call:
+    // await fetch('/api/progress', { 
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ 
+    //     userId: params.userId,
+    //     courseId: params.courseId,
+    //     data: scormData 
+    //   })
+    // });
+    
+    return true;
+  } catch (err) {
+    console.error("Error saving to server:", err);
+    return false;
+  }
+}
+
+// SCORM 1.2 API Implementation
 window.API = {
-  LMSInitialize: function() { return "true"; },
-  LMSFinish: function() { return "true"; },
-  LMSGetValue: function() { return ""; },
-  LMSSetValue: function() { return "true"; },
-  LMSCommit: function() { return "true"; },
-  LMSGetLastError: function() { return "0"; },
-  LMSGetErrorString: function() { return ""; },
-  LMSGetDiagnostic: function() { return ""; }
+  LMSInitialize: function(param) {
+    logApiCall("1.2", "LMSInitialize", param, "true");
+    return "true";
+  },
+  
+  LMSFinish: function(param) {
+    // Save data when course finishes
+    saveToServer();
+    logApiCall("1.2", "LMSFinish", param, "true");
+    return "true"; 
+  },
+  
+  LMSGetValue: function(element) {
+    const value = scormData[element] || "";
+    logApiCall("1.2", "LMSGetValue", element, value);
+    return value;
+  },
+  
+  LMSSetValue: function(element, value) {
+    scormData[element] = value;
+    logApiCall("1.2", "LMSSetValue", `${element}, ${value}`, "true");
+    return "true";
+  },
+  
+  LMSCommit: function(param) {
+    // Save progress
+    saveToServer();
+    logApiCall("1.2", "LMSCommit", param, "true");
+    return "true";
+  },
+  
+  LMSGetLastError: function() {
+    logApiCall("1.2", "LMSGetLastError", "", "0");
+    return "0";
+  },
+  
+  LMSGetErrorString: function(errorCode) {
+    logApiCall("1.2", "LMSGetErrorString", errorCode, "No error");
+    return "No error";
+  },
+  
+  LMSGetDiagnostic: function(errorCode) {
+    logApiCall("1.2", "LMSGetDiagnostic", errorCode, "No error");
+    return "No error";
+  }
 };
 
-
-
-
-
+// SCORM 2004 API Implementation
 window.API_1484_11 = {
-  Initialize: function() { return "true"; },
-  Terminate: function() { return "true"; },
-  GetValue: function() { return ""; },
-  SetValue: function() { return "true"; },
-  Commit: function() { return "true"; },
-  GetLastError: function() { return "0"; },
-  GetErrorString: function() { return ""; },
-  GetDiagnostic: function() { return ""; }
+  Initialize: function(param) {
+    logApiCall("2004", "Initialize", param, "true");
+    return "true";
+  },
+  
+  Terminate: function(param) {
+    // Save data when course terminates
+    saveToServer();
+    logApiCall("2004", "Terminate", param, "true");
+    return "true";
+  },
+  
+  GetValue: function(element) {
+    const value = scormData[element] || "";
+    logApiCall("2004", "GetValue", element, value);
+    return value;
+  },
+  
+  SetValue: function(element, value) {
+    scormData[element] = value;
+    logApiCall("2004", "SetValue", `${element}, ${value}`, "true");
+    return "true";
+  },
+  
+  Commit: function(param) {
+    // Save progress
+    saveToServer();
+    logApiCall("2004", "Commit", param, "true");
+    return "true";
+  },
+  
+  GetLastError: function() {
+    logApiCall("2004", "GetLastError", "", "0");
+    return "0";
+  },
+  
+  GetErrorString: function(errorCode) {
+    logApiCall("2004", "GetErrorString", errorCode, "No error");
+    return "No error";
+  },
+  
+  GetDiagnostic: function(errorCode) {
+    logApiCall("2004", "GetDiagnostic", errorCode, "No error");
+    return "No error";
+  }
 };
+
+// Log when the SCORM APIs are ready
+console.log("SCORM API adapters initialized for development mode");
+console.log("Query parameters:", getQueryParams());
 

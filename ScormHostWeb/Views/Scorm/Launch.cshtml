@@ -1,14 +1,168 @@
 @{
     Layout = null;
     var courseId = ViewBag.CourseId;
+    var userId = ViewBag.UserId;
+    var launchUrl = ViewBag.LaunchUrl ?? $"~/scorm-packages/{courseId}/SHP/index_lms.html?courseId={courseId}&userId={userId}";
 }
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SCORM Player</title>
+    <title>SCORM Player - Development Mode</title>
     <script src="~/js/scripts/scorm-api-adapter.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+        .dev-mode-header {
+            background-color: #ffeb3b;
+            color: #333;
+            padding: 5px 10px;
+            font-size: 14px;
+            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .dev-mode-header button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        #scorm-content {
+            border: none;
+            width: 100%;
+            height: calc(100vh - 30px);
+        }
+        .hidden {
+            display: none !important;
+        }
+        #dev-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            background: #f5f5f5;
+            border-top: 1px solid #ccc;
+            overflow: auto;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            display: none;
+        }
+        #dev-console.visible {
+            display: block;
+        }
+        #dev-console-content {
+            margin: 0;
+            padding: 0;
+        }
+        .dev-console-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .dev-console-header button {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .iframe-container {
+            height: calc(100vh - 30px);
+            transition: height 0.3s ease;
+        }
+        .iframe-container.with-console {
+            height: calc(100vh - 230px);
+        }
+        .log-entry {
+            border-bottom: 1px solid #eee;
+            padding: 2px 0;
+        }
+    </style>
 </head>
 <body>
-    <iframe id="scorm-content" src="~/scorm-packages/831663EE-325E-47E2-B7F9-4B23A8696798/SHP/index_lms.html?courseId=@courseId" width="100%" height="700"></iframe>
+    <div class="dev-mode-header">
+        <span>SCORM Player - Development Mode (CourseID: @courseId, UserID: @userId)</span>
+        <div>
+            <button id="toggle-console">Show Console</button>
+            <button id="toggle-fullscreen">Fullscreen</button>
+        </div>
+    </div>
+    
+    <div id="iframe-container" class="iframe-container">
+        <iframe id="scorm-content" src="@launchUrl" allowfullscreen></iframe>
+    </div>
+    
+    <div id="dev-console">
+        <div class="dev-console-header">
+            <span>SCORM API Console</span>
+            <button id="clear-console">Clear</button>
+        </div>
+        <div id="dev-console-content"></div>
+    </div>
+    
+    <script>
+        // Initialize SCORM adapter and dev tools
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('SCORM Player initialized for course: @courseId, user: @userId');
+            
+            // Development tools setup
+            const toggleConsoleBtn = document.getElementById('toggle-console');
+            const toggleFullscreenBtn = document.getElementById('toggle-fullscreen');
+            const clearConsoleBtn = document.getElementById('clear-console');
+            const devConsole = document.getElementById('dev-console');
+            const devConsoleContent = document.getElementById('dev-console-content');
+            const iframeContainer = document.getElementById('iframe-container');
+            const scormContent = document.getElementById('scorm-content');
+            
+            // Override console.log to capture in our dev console
+            const originalConsoleLog = console.log;
+            console.log = function() {
+                // Call original console.log
+                originalConsoleLog.apply(console, arguments);
+                
+                // Add to our dev console
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.textContent = Array.from(arguments).join(' ');
+                devConsoleContent.appendChild(logEntry);
+                devConsoleContent.scrollTop = devConsoleContent.scrollHeight;
+            };
+            
+            // Console toggle
+            toggleConsoleBtn.addEventListener('click', function() {
+                devConsole.classList.toggle('visible');
+                iframeContainer.classList.toggle('with-console');
+                toggleConsoleBtn.textContent = devConsole.classList.contains('visible') ? 'Hide Console' : 'Show Console';
+            });
+            
+            // Clear console
+            clearConsoleBtn.addEventListener('click', function() {
+                devConsoleContent.innerHTML = '';
+            });
+            
+            // Fullscreen toggle
+            toggleFullscreenBtn.addEventListener('click', function() {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                } else {
+                    scormContent.requestFullscreen();
+                }
+            });
+            
+            // Log successful initialization
+            console.log('Development tools initialized');
+            console.log('SCORM content URL: ' + '@launchUrl');
+        });
+    </script>
 </body>
 </html>
