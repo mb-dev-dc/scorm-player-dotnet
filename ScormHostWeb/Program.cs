@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ScormHost.Web.Data;
 using System.Text; // Added for Encoding
+using Newtonsoft.Json.Linq;
 
 namespace ScormHostWeb;
 
@@ -12,6 +13,13 @@ public class LaunchRequest
 {
     public Guid UserId { get; set; }
     public Guid CourseId { get; set; }
+}
+
+// Add CommitRequest class for the commit API endpoint
+public class CommitRequest
+{
+    public Guid AttemptId { get; set; }
+    public JObject CmiData { get; set; }
 }
 
 public class Program
@@ -137,6 +145,14 @@ public class Program
             var launchInfo = await runtime.LaunchCourseAsync(request.UserId, request.CourseId);
             // launchInfo may contain an AttemptId and perhaps a one-time launch token or URL
             return Results.Ok(launchInfo);
+        });
+
+        // Add new Commit endpoint for SCORM data
+        apiGroup.MapPost("/commit", async (CommitRequest request, ScormRuntimeService runtime) =>
+        {
+            // Commit the SCORM data to the database
+            bool success = await runtime.CommitAttemptAsync(request.AttemptId, request.CmiData);
+            return success ? Results.Ok() : Results.BadRequest("Failed to commit SCORM data");
         });
 
         app.Run();
