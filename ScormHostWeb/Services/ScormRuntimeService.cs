@@ -312,9 +312,7 @@ namespace ScormHost.Web.Services
             }
 
             // Update session time and add to total time
-            string sessionTime = isScorm2004
-                ? coreData["session_time"]?.ToString()
-                : coreData["session_time"]?.ToString();
+            string sessionTime = isScorm2004 ? coreData["session_time"]?.ToString() : coreData["session_time"]?.ToString();
 
             if (!string.IsNullOrEmpty(sessionTime))
             {
