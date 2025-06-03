@@ -194,9 +194,7 @@ namespace ScormHost.Web.Services
             bool isScorm2004 = attempt.Course?.Version == "2004";
 
             // Get the core data (structure differs between SCORM 1.2 and 2004)
-            JObject coreData = isScorm2004 
-                ? cmiData 
-                : cmiData["core"] as JObject;
+            JObject coreData = isScorm2004 ? cmiData : cmiData["core"] as JObject;
 
             if (coreData == null)
             {
@@ -204,9 +202,7 @@ namespace ScormHost.Web.Services
             }
 
             // Update lesson_location (bookmark)
-            string lessonLocation = isScorm2004
-                ? coreData["location"]?.ToString()
-                : coreData["lesson_location"]?.ToString();
+            string lessonLocation = isScorm2004 ? coreData["location"]?.ToString() : coreData["lesson_location"]?.ToString();
             
             if (!string.IsNullOrEmpty(lessonLocation))
             {
@@ -214,9 +210,7 @@ namespace ScormHost.Web.Services
             }
 
             // Update suspend_data
-            string suspendData = isScorm2004
-                ? cmiData["suspend_data"]?.ToString()
-                : coreData["suspend_data"]?.ToString();
+            string suspendData = isScorm2004 ? cmiData["suspend_data"]?.ToString() : coreData["suspend_data"]?.ToString();
 
             if (!string.IsNullOrEmpty(suspendData))
             {
