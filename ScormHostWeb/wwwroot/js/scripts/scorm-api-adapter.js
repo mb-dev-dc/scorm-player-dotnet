@@ -37,30 +37,25 @@ function getQueryParams() {
   return params;
 }
 
-// Save data to server (development stub)
-async function saveToServer() {
+// Save data to server
+async function saveToServer(endpoint) {
   try {
     const params = getQueryParams();
-    console.log("Would save to server:", { 
-      userId: params.userId, 
-      courseId: params.courseId,
-      data: scormData 
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(scormData)
     });
-    
-    // In a real implementation, this would be an API call:
-    // await fetch('/api/progress', { 
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ 
-    //     userId: params.userId,
-    //     courseId: params.courseId,
-    //     data: scormData 
-    //   })
-    // });
-    
+
+    if (!response.ok) {
+      console.error(`Failed to save data to ${endpoint}:`, response.statusText);
+      return false;
+    }
+
+    console.log(`Data successfully saved to ${endpoint}`);
     return true;
   } catch (err) {
-    console.error("Error saving to server:", err);
+    console.error(`Error saving to ${endpoint}:`, err);
     return false;
   }
 }
@@ -72,9 +67,10 @@ window.API = {
     return "true";
   },
   
-  LMSFinish: function(param) {
+  LMSFinish: async function(param) {
     // Save data when course finishes
-    saveToServer();
+    const params = getQueryParams();
+    await saveToServer(`/api/scorm/attempts/${params.attemptId}/finish`);
     logApiCall("1.2", "LMSFinish", param, "true");
     return "true"; 
   },
@@ -91,9 +87,10 @@ window.API = {
     return "true";
   },
   
-  LMSCommit: function(param) {
+  LMSCommit: async function(param) {
     // Save progress
-    saveToServer();
+    const params = getQueryParams();
+    await saveToServer(`/api/scorm/attempts/${params.attemptId}/commit`);
     logApiCall("1.2", "LMSCommit", param, "true");
     return "true";
   },
@@ -121,9 +118,10 @@ window.API_1484_11 = {
     return "true";
   },
   
-  Terminate: function(param) {
+  Terminate: async function(param) {
     // Save data when course terminates
-    saveToServer();
+    const params = getQueryParams();
+    await saveToServer(`/api/scorm/attempts/${params.attemptId}/finish`);
     logApiCall("2004", "Terminate", param, "true");
     return "true";
   },
@@ -140,9 +138,10 @@ window.API_1484_11 = {
     return "true";
   },
   
-  Commit: function(param) {
+  Commit: async function(param) {
     // Save progress
-    saveToServer();
+    const params = getQueryParams();
+    await saveToServer(`/api/scorm/attempts/${params.attemptId}/commit`);
     logApiCall("2004", "Commit", param, "true");
     return "true";
   },

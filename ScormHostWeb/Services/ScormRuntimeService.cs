@@ -11,10 +11,12 @@ namespace ScormHost.Web.Services
     public class ScormRuntimeService
     {
         private readonly ScormDbContext _dbContext;
+        private readonly bool _isTestEnvironment;
 
-        public ScormRuntimeService(ScormDbContext dbContext)
+        public ScormRuntimeService(ScormDbContext dbContext, bool isTestEnvironment = false)
         {
             _dbContext = dbContext;
+            _isTestEnvironment = isTestEnvironment;
         }
 
         /// <summary>
@@ -93,9 +95,8 @@ namespace ScormHost.Web.Services
                 // Get the highest attempt number for this user and course
                 var maxAttemptNumber = await _dbContext.Attempts
                     .Where(a => a.UserId == userId && a.CourseId == courseId)
-                    .Select(a => a.AttemptNumber)
-                    .DefaultIfEmpty(0)
-                    .MaxAsync();
+                    .Select(a => (int?)a.AttemptNumber)
+                    .MaxAsync() ?? 0;
                 attemptNumber = maxAttemptNumber + 1;
 
                 // Create a new attempt
@@ -144,13 +145,25 @@ namespace ScormHost.Web.Services
             // Add query parameters
             launchUrl += $"?attemptId={attempt.AttemptId}&courseId={courseId}&userId={userId}";
 
+            // Include resume data if available
+            var resumeData = new
+            {
+                LessonLocation = attempt.LessonLocation,
+                SuspendData = attempt.SuspendData,
+                CompletionStatus = attempt.CompletionStatus,
+                SuccessStatus = attempt.SuccessStatus,
+                ScoreRaw = attempt.ScoreRaw,
+                TotalTime = attempt.TotalTime
+            };
+
             return new LaunchInfo
             {
                 AttemptId = attempt.AttemptId,
                 CourseId = courseId,
                 UserId = userId,
                 LaunchUrl = launchUrl,
-                CourseTitle = course.Title
+                CourseTitle = course.Title,
+                ResumeData = resumeData
             };
         }
 
@@ -159,9 +172,42 @@ namespace ScormHost.Web.Services
         /// </summary>
         public async Task<bool> CommitAttemptAsync(Guid attemptId, JObject cmiData)
         {
-            using var transaction = await _dbContext.Database.BeginTransactionAsync();
-            try
+            if (!_isTestEnvironment)
             {
+                using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                try
+                {
+                    var attempt = await _dbContext.Attempts.FindAsync(attemptId);
+                    if (attempt == null)
+                    {
+                        return false;
+                    }
+
+                    // Update the LastAccessedOn timestamp
+                    attempt.LastAccessedOn = DateTime.UtcNow;
+
+                    // Store the full CMI data as JSON
+                    attempt.AttemptStateJson = cmiData.ToString();
+
+                    // Update specific tracked fields from the CMI data
+                    UpdateAttemptFromCmiData(attempt, cmiData);
+
+                    // Save changes to the database
+                    await _dbContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    // Log the exception for debugging
+                    Console.WriteLine($"Error committing SCORM attempt: {ex.Message}");
+                    throw;
+                }
+            }
+            else
+            {
+                // Skip transaction handling in test environment
                 var attempt = await _dbContext.Attempts.FindAsync(attemptId);
                 if (attempt == null)
                 {
@@ -177,14 +223,9 @@ namespace ScormHost.Web.Services
                 // Update specific tracked fields from the CMI data
                 UpdateAttemptFromCmiData(attempt, cmiData);
 
+                // Save changes to the database
                 await _dbContext.SaveChangesAsync();
-                await transaction.CommitAsync();
                 return true;
-            }
-            catch (Exception)
-            {
-                await transaction.RollbackAsync();
-                throw;
             }
         }
 
@@ -384,6 +425,38 @@ namespace ScormHost.Web.Services
             }
             return TimeSpan.Zero;
         }
+
+        /// <summary>
+        /// Marks a SCORM attempt as finished
+        /// </summary>
+        public async Task<bool> FinishAttemptAsync(Guid attemptId)
+        {
+            try
+            {
+                var attempt = await _dbContext.Attempts.FindAsync(attemptId);
+                if (attempt == null)
+                {
+                    return false;
+                }
+
+                // Mark the attempt as completed if not already done
+                if (!attempt.CompletedOn.HasValue)
+                {
+                    attempt.CompletedOn = DateTime.UtcNow;
+                    attempt.CompletionStatus = "completed";
+                }
+
+                // Save changes to the database
+                await _dbContext.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Log the exception for debugging
+                Console.WriteLine($"Error finishing SCORM attempt: {ex.Message}");
+                throw;
+            }
+        }
     }
 
     // DTOs for API responses
@@ -408,5 +481,6 @@ namespace ScormHost.Web.Services
         public Guid UserId { get; set; }
         public string LaunchUrl { get; set; } = string.Empty;
         public string CourseTitle { get; set; } = string.Empty;
+        public object ResumeData { get; set; }
     }
 }
