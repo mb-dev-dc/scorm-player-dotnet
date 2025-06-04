@@ -12,10 +12,12 @@ namespace ScormHost.Web.Services
     {
         private readonly ScormDbContext _dbContext;
         private readonly bool _isTestEnvironment;
+        private readonly ILogger<ScormRuntimeService> _logger;
 
-        public ScormRuntimeService(ScormDbContext dbContext, bool isTestEnvironment = false)
+        public ScormRuntimeService(ScormDbContext dbContext, ILogger<ScormRuntimeService> logger, bool isTestEnvironment = false)
         {
             _dbContext = dbContext;
+            _logger = logger;
             _isTestEnvironment = isTestEnvironment;
         }
 
@@ -128,21 +130,31 @@ namespace ScormHost.Web.Services
             }
 
             // Construct the launch URL
-            string baseUrl = $"/scorm-packages/{courseId}/";
-            string launchFile = course.LaunchScoId;
+            string packagePath = course.PackagePath.TrimEnd('/');
+            string baseUrl = $"/scorm-packages/{courseId}/{packagePath}/";
+            string launchFile = null;
+
+            // Use LaunchScoId to find the corresponding SCO
+            if (!string.IsNullOrEmpty(course.LaunchScoId))
+            {
+                var launchSco = await _dbContext.SCOs
+                    .Where(s => s.CourseId == courseId && s.ScoId == Guid.Parse(course.LaunchScoId))
+                    .FirstOrDefaultAsync();
+
+                launchFile = launchSco?.LaunchFile;
+            }
+
+            // Fallback to the first SCO or default file if LaunchScoId is invalid or not found
             if (string.IsNullOrEmpty(launchFile))
             {
-                // Get the launch file from the default SCO if available
-                var launchSco = await _dbContext.SCOs
+                var defaultSco = await _dbContext.SCOs
                     .Where(s => s.CourseId == courseId)
                     .FirstOrDefaultAsync();
-                
-                launchFile = launchSco?.LaunchFile ?? "index_lms.html";
+
+                launchFile = defaultSco?.LaunchFile ?? "index_lms.html";
             }
 
             string launchUrl = baseUrl + launchFile;
-
-            // Add query parameters
             launchUrl += $"?attemptId={attempt.AttemptId}&courseId={courseId}&userId={userId}";
 
             // Include resume data if available
@@ -189,6 +201,9 @@ namespace ScormHost.Web.Services
                     // Store the full CMI data as JSON
                     attempt.AttemptStateJson = cmiData.ToString();
 
+                    // Log the received data
+                    _logger.LogDebug("Received data for commit: {Data}", cmiData.ToString());
+
                     // Update specific tracked fields from the CMI data
                     UpdateAttemptFromCmiData(attempt, cmiData);
 
@@ -219,6 +234,9 @@ namespace ScormHost.Web.Services
 
                 // Store the full CMI data as JSON
                 attempt.AttemptStateJson = cmiData.ToString();
+
+                // Log the received data
+                _logger.LogDebug("Received data for commit: {Data}", cmiData.ToString());
 
                 // Update specific tracked fields from the CMI data
                 UpdateAttemptFromCmiData(attempt, cmiData);
@@ -366,6 +384,9 @@ namespace ScormHost.Web.Services
             {
                 attempt.CompletedOn = DateTime.UtcNow;
             }
+
+            Console.WriteLine($"Received cmiData: {cmiData}");
+            Console.WriteLine($"SuspendData: {attempt.SuspendData}");
         }
 
         private TimeSpan ParseSCORMTimespan(string timeString)

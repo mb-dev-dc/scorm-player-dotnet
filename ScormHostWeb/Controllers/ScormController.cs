@@ -27,7 +27,7 @@ namespace ScormHost.Web.Controllers
             if (!userId.HasValue)
             {
                 // Default development user ID
-                userId = Guid.NewGuid(); // Using a new GUID as test user ID
+                userId = Guid.Parse("C09FE532-00D4-4AF4-A50D-B5CE8A6F5894"); // Use a new GUID as test user ID
                 
                 // If authentication is enabled, try to get from claims
                 if (User.Identity?.IsAuthenticated == true)
