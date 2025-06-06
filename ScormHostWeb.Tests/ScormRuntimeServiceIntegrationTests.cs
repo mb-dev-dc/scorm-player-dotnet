@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore.InMemory;
 using ScormHost.Web.Services;
 using ScormHost.Web.Data;
 using ScormHost.Web.Data.Models;
+using Microsoft.Extensions.Logging;
+using Moq;
 
 namespace ScormHostWeb.Tests
 {
@@ -19,12 +21,18 @@ namespace ScormHostWeb.Tests
             return new ScormDbContext(options);
         }
 
+        private ILogger<ScormRuntimeService> CreateLogger()
+        {
+            return new Mock<ILogger<ScormRuntimeService>>().Object;
+        }
+
         [Fact]
         public async Task GetProgressAsync_ShouldReturnDefaultProgress_WhenNoAttemptsExist()
         {
             // Arrange
             using var dbContext = CreateInMemoryDbContext();
-            var service = new ScormRuntimeService(dbContext);
+            var logger = CreateLogger();
+            var service = new ScormRuntimeService(dbContext, logger);
 
             var userId = Guid.NewGuid();
             var courseId = Guid.NewGuid();
@@ -53,7 +61,8 @@ namespace ScormHostWeb.Tests
         {
             // Arrange
             using var dbContext = CreateInMemoryDbContext();
-            var service = new ScormRuntimeService(dbContext);
+            var logger = CreateLogger();
+            var service = new ScormRuntimeService(dbContext, logger);
 
             var userId = Guid.NewGuid();
             var courseId = Guid.NewGuid();

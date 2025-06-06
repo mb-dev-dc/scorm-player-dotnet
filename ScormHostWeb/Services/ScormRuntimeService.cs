@@ -131,14 +131,14 @@ namespace ScormHost.Web.Services
 
             // Construct the launch URL
             string packagePath = course.PackagePath.TrimEnd('/');
-            string baseUrl = $"/scorm-packages/{courseId}/{packagePath}/";
+            string baseUrl = $"/scorm-packages/{Uri.EscapeDataString(courseId.ToString())}/{Uri.EscapeDataString(packagePath)}/";
             string launchFile = null;
 
             // Use LaunchScoId to find the corresponding SCO
             if (!string.IsNullOrEmpty(course.LaunchScoId))
             {
                 var launchSco = await _dbContext.SCOs
-                    .Where(s => s.CourseId == courseId && s.ScoId == Guid.Parse(course.LaunchScoId))
+                    .Where(s => s.CourseId == courseId && s.Identifier == course.LaunchScoId)
                     .FirstOrDefaultAsync();
 
                 launchFile = launchSco?.LaunchFile;
@@ -151,11 +151,30 @@ namespace ScormHost.Web.Services
                     .Where(s => s.CourseId == courseId)
                     .FirstOrDefaultAsync();
 
-                launchFile = defaultSco?.LaunchFile ?? "index_lms.html";
+                if (defaultSco != null)
+                {
+                    launchFile = defaultSco.LaunchFile;
+                }
+                else if (!string.IsNullOrEmpty(course.LaunchScoId))
+                {
+                    // Use LaunchScoId as filename if no SCO matches
+                    launchFile = course.LaunchScoId;
+                }
+                else
+                {
+                    // Final fallback
+                    launchFile = "index_lms.html";
+                }
             }
 
-            string launchUrl = baseUrl + launchFile;
-            launchUrl += $"?attemptId={attempt.AttemptId}&courseId={courseId}&userId={userId}";
+            string launchUrl = baseUrl + Uri.EscapeDataString(launchFile);
+            // Use a format that's less likely to be HTML-encoded
+            launchUrl += "?attemptId=" + attempt.AttemptId.ToString() 
+                      + "&courseId=" + courseId.ToString()
+                      + "&userId=" + userId.ToString();
+
+            // Log the generated launch URL for debugging
+            _logger.LogDebug("Generated LaunchUrl: {LaunchUrl}", launchUrl);
 
             // Include resume data if available
             var resumeData = new
@@ -331,7 +350,7 @@ namespace ScormHost.Web.Services
                 // Get raw score
                 if (scoreData["raw"] != null)
                 {
-                    if (int.TryParse(scoreData["raw"].ToString(), out int rawScore))
+                    if (decimal.TryParse(scoreData["raw"].ToString(), out decimal rawScore))
                     {
                         attempt.ScoreRaw = rawScore;
                     }
@@ -340,7 +359,7 @@ namespace ScormHost.Web.Services
                 // Get max score
                 if (scoreData["max"] != null)
                 {
-                    if (int.TryParse(scoreData["max"].ToString(), out int maxScore))
+                    if (decimal.TryParse(scoreData["max"].ToString(), out decimal maxScore))
                     {
                         attempt.ScoreMax = maxScore;
                     }
@@ -349,7 +368,7 @@ namespace ScormHost.Web.Services
                 // Get min score
                 if (scoreData["min"] != null)
                 {
-                    if (int.TryParse(scoreData["min"].ToString(), out int minScore))
+                    if (decimal.TryParse(scoreData["min"].ToString(), out decimal minScore))
                     {
                         attempt.ScoreMin = minScore;
                     }
@@ -366,7 +385,7 @@ namespace ScormHost.Web.Services
                 else if (attempt.ScoreRaw.HasValue && attempt.ScoreMax.HasValue && attempt.ScoreMax.Value > 0)
                 {
                     // Calculate scaled score from raw/max for SCORM 1.2
-                    attempt.ScoreScaled = (double)attempt.ScoreRaw.Value / attempt.ScoreMax.Value;
+                    attempt.ScoreScaled = (double)(attempt.ScoreRaw.Value / attempt.ScoreMax.Value);
                 }
             }
 
@@ -488,7 +507,7 @@ namespace ScormHost.Web.Services
         public Guid? AttemptId { get; set; }
         public string Status { get; set; } = string.Empty;
         public string CompletionStatus { get; set; } = string.Empty;
-        public int? Score { get; set; }
+        public decimal? Score { get; set; }
         public DateTime? StartedOn { get; set; }
         public DateTime? CompletedOn { get; set; }
         public string LessonLocation { get; set; } = string.Empty;
@@ -502,6 +521,6 @@ namespace ScormHost.Web.Services
         public Guid UserId { get; set; }
         public string LaunchUrl { get; set; } = string.Empty;
         public string CourseTitle { get; set; } = string.Empty;
-        public object ResumeData { get; set; }
+        public object ResumeData { get; set; } = new();
     }
 }

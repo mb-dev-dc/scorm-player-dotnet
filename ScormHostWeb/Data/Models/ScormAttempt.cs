@@ -22,10 +22,10 @@ namespace ScormHost.Web.Data.Models
         public DateTime? CompletedOn { get; set; }
         public string CompletionStatus { get; set; } // "not attempted", "incomplete", "completed"
         public string SuccessStatus { get; set; }  // "passed", "failed", "unknown" (for 2004)
-        public double? ScoreScaled { get; set; }   // 0.0–1.0 normalized score 
-        public int? ScoreRaw { get; set; }          // 0–100 raw score (if provided)
-        public int? ScoreMax { get; set; }
-        public int? ScoreMin { get; set; }
+        public double? ScoreScaled { get; set; }   // 0.0â€“1.0 normalized score 
+        public decimal? ScoreRaw { get; set; }     // raw score (if provided)
+        public decimal? ScoreMax { get; set; }
+        public decimal? ScoreMin { get; set; }
         public string? LessonLocation { get; set; }   // bookmark (1.2)   
         public string? SuspendData { get; set; }      // potentially large text 
         public string? LaunchData { get; set; }       // data from LMS to SCO, rarely used

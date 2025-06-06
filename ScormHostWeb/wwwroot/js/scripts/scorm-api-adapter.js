@@ -23,36 +23,129 @@ function logApiCall(version, func, args, result) {
   console.log(`SCORM ${version} | ${func}(${args ? args : ''}) => ${result}`);
 }
 
-// Extract query parameters (for courseId, userId etc.)
+// Update getQueryParams to work correctly whether in main window or iframe
 function getQueryParams() {
   const params = {};
-  const queryString = window.location.search;
-  const urlParams = new URLSearchParams(queryString);
   
-  // Common parameters we might need
-  params.courseId = urlParams.get('courseId');
-  params.userId = urlParams.get('userId');
-  params.attemptId = urlParams.get('attemptId');
+  try {
+    // Determine if we're in an iframe
+    const isInIframe = window !== window.parent;
+    console.log("Is running in iframe:", isInIframe);
+    
+    let queryString = '';
+    
+    if (isInIframe) {
+      // We're in the iframe, so we need to parse our own location
+      queryString = window.location.search;
+      console.log("Iframe query string:", queryString);
+    } else {
+      // We're in the parent window, so we need to get the iframe's src
+      const iframe = document.getElementById('scorm-content');
+      if (iframe) {
+        const src = iframe.getAttribute('src');
+        console.log("Iframe src attribute:", src);
+        
+        // Extract query string from src
+        const queryIndex = src.indexOf('?');
+        if (queryIndex !== -1) {
+          queryString = src.substring(queryIndex);
+        }
+      }
+    }
+    
+    console.log("Using query string:", queryString);
+    
+    // Ensure any HTML entities are decoded
+    queryString = queryString.replace(/&amp;/g, '&');
+    
+    // Parse the query string manually to avoid encoding issues
+    if (queryString && queryString.length > 1) {
+      const paramPairs = queryString.substring(1).split('&');
+      for (let i = 0; i < paramPairs.length; i++) {
+        const pair = paramPairs[i].split('=');
+        if (pair.length === 2) {
+          const key = decodeURIComponent(pair[0]);
+          const value = decodeURIComponent(pair[1]);
+          params[key] = value;
+        }
+      }
+    }
+    
+    console.log("Extracted parameters:", params);
+  } catch (error) {
+    console.error("Error extracting query parameters:", error);
+  }
   
   return params;
 }
 
-// Save data to server
+// Update saveToServer to send the SCORM data as the root object
 async function saveToServer(endpoint) {
   try {
     const params = getQueryParams();
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(scormData)
-    });
 
-    if (!response.ok) {
-      console.error(`Failed to save data to ${endpoint}:`, response.statusText);
+    // Check if attemptId is valid
+    if (!params.attemptId) {
+      console.error("Attempt ID is missing. Cannot save data.");
       return false;
     }
 
-    console.log(`Data successfully saved to ${endpoint}`);
+    // Format the data as expected by the server
+    const dataToSend = {};
+    dataToSend.core = {};
+    if (scormData["cmi.core.lesson_status"]) dataToSend.core.lesson_status = scormData["cmi.core.lesson_status"];
+    if (scormData["cmi.core.lesson_location"]) dataToSend.core.lesson_location = scormData["cmi.core.lesson_location"];
+    if (scormData["cmi.core.session_time"]) dataToSend.core.session_time = scormData["cmi.core.session_time"];
+    if (scormData["cmi.core.exit"]) dataToSend.core.exit = scormData["cmi.core.exit"];
+    dataToSend.core.score = {};
+    if (scormData["cmi.core.score.raw"]) dataToSend.core.score.raw = scormData["cmi.core.score.raw"];
+    if (scormData["cmi.core.score.min"]) dataToSend.core.score.min = scormData["cmi.core.score.min"];
+    if (scormData["cmi.core.score.max"]) dataToSend.core.score.max = scormData["cmi.core.score.max"];
+    if (scormData["cmi.suspend_data"]) dataToSend.suspend_data = scormData["cmi.suspend_data"];
+
+    // Critical - Construct the request body to exactly match the PayloadWrapper expectation
+    const requestBody = {
+      payload: dataToSend
+    };
+
+    console.log("Sending data to server:", endpoint);
+    console.log("Request body:", JSON.stringify(requestBody));
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      let errorDetails = "";
+      try {
+        // Try to parse error as JSON first
+        const errorJson = await response.json();
+        errorDetails = JSON.stringify(errorJson);
+      } catch (err) {
+        // If JSON parsing fails, try as text
+        try {
+          errorDetails = await response.text();
+        } catch (textErr) {
+          errorDetails = "Could not read error details";
+        }
+      }
+      console.error(`Failed to save data to ${endpoint}: ${response.status} ${response.statusText}`);
+      console.error("Error details:", errorDetails);
+      return false;
+    }
+
+    // Try to parse the response
+    try {
+      const responseData = await response.json();
+      console.log(`Data successfully saved to ${endpoint}:`, responseData);
+    } catch (e) {
+      console.log(`Data saved to ${endpoint}, but could not parse response`);
+    }
     return true;
   } catch (err) {
     console.error(`Error saving to ${endpoint}:`, err);

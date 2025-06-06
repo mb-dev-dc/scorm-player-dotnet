@@ -50,13 +50,21 @@ namespace ScormHost.Web.Controllers
                     ViewBag.CourseId = courseId.Value;
                     ViewBag.UserId = userId.Value;
                     ViewBag.LaunchUrl = $"/scorm-packages/{courseId.Value}/SHP/index_lms.html?userId={userId.Value}&courseId={courseId.Value}";
+                    
+                    // Log the LaunchUrl for debugging
+                    Console.WriteLine($"LaunchUrl: {ViewBag.LaunchUrl}");
+                    
                     return View();
                 }
 
                 // Pass the launch information to the view
                 ViewBag.CourseId = courseId.Value;
                 ViewBag.UserId = userId.Value;
-                ViewBag.LaunchUrl = launchInfo.LaunchUrl;
+                ViewBag.AttemptId = launchInfo.AttemptId;  // Explicitly pass the attemptId
+                ViewBag.LaunchUrl = System.Web.HttpUtility.HtmlDecode(launchInfo.LaunchUrl);
+
+                // Log the LaunchUrl for debugging
+                Console.WriteLine($"LaunchUrl: {ViewBag.LaunchUrl}");
 
                 return View();
             }
@@ -68,7 +76,10 @@ namespace ScormHost.Web.Controllers
                 // Set fallback values for development
                 ViewBag.CourseId = courseId.Value;
                 ViewBag.UserId = userId.Value;
-                ViewBag.LaunchUrl = $"/scorm-packages/{courseId.Value}/SHP/index_lms.html?userId={userId.Value}&courseId={courseId.Value}";
+                ViewBag.LaunchUrl = $"/scorm-packages/{courseId.Value}/SHP/index_lms.html?userId={userId.Value}&courseId={userId.Value}";
+                
+                // Log the LaunchUrl for debugging
+                Console.WriteLine($"LaunchUrl: {ViewBag.LaunchUrl}");
                 
                 return View();
             }

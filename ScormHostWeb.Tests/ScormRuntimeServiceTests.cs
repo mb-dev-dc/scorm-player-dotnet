@@ -10,6 +10,7 @@ using Newtonsoft.Json.Linq;
 using System.Linq.Expressions;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace ScormHostWeb.Tests
 {
@@ -17,11 +18,13 @@ namespace ScormHostWeb.Tests
     {
         private readonly ScormRuntimeService _service;
         private readonly Mock<ScormDbContext> _dbContextMock;
+        private readonly Mock<ILogger<ScormRuntimeService>> _loggerMock;
 
         public ScormRuntimeServiceTests()
         {
             _dbContextMock = new Mock<ScormDbContext>(new DbContextOptions<ScormDbContext>());
-            _service = new ScormRuntimeService(_dbContextMock.Object);
+            _loggerMock = new Mock<ILogger<ScormRuntimeService>>();
+            _service = new ScormRuntimeService(_dbContextMock.Object, _loggerMock.Object);
         }
 
         [Fact]
@@ -31,7 +34,8 @@ namespace ScormHostWeb.Tests
             using var dbContext = new ScormDbContext(new DbContextOptionsBuilder<ScormDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options);
-            var service = new ScormRuntimeService(dbContext, isTestEnvironment: true);
+            var loggerMock = new Mock<ILogger<ScormRuntimeService>>();
+            var service = new ScormRuntimeService(dbContext, loggerMock.Object, isTestEnvironment: true);
 
             var attemptId = Guid.NewGuid();
 
@@ -49,7 +53,8 @@ namespace ScormHostWeb.Tests
             using var dbContext = new ScormDbContext(new DbContextOptionsBuilder<ScormDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options);
-            var service = new ScormRuntimeService(dbContext);
+            var loggerMock = new Mock<ILogger<ScormRuntimeService>>();
+            var service = new ScormRuntimeService(dbContext, loggerMock.Object);
 
             var attemptId = Guid.NewGuid();
 
@@ -67,7 +72,8 @@ namespace ScormHostWeb.Tests
             using var dbContext = new ScormDbContext(new DbContextOptionsBuilder<ScormDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options);
-            var service = new ScormRuntimeService(dbContext, isTestEnvironment: true);
+            var loggerMock = new Mock<ILogger<ScormRuntimeService>>();
+            var service = new ScormRuntimeService(dbContext, loggerMock.Object, isTestEnvironment: true);
 
             var attemptId = Guid.NewGuid();
             var attempt = new ScormAttempt { AttemptId = attemptId, CompletedOn = null };
@@ -90,7 +96,8 @@ namespace ScormHostWeb.Tests
             using var dbContext = new ScormDbContext(new DbContextOptionsBuilder<ScormDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options);
-            var service = new ScormRuntimeService(dbContext, isTestEnvironment: true);
+            var loggerMock = new Mock<ILogger<ScormRuntimeService>>();
+            var service = new ScormRuntimeService(dbContext, loggerMock.Object, isTestEnvironment: true);
 
             var userId = Guid.NewGuid();
             var courseId = Guid.NewGuid();
@@ -109,7 +116,8 @@ namespace ScormHostWeb.Tests
             using var dbContext = new ScormDbContext(new DbContextOptionsBuilder<ScormDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options);
-            var service = new ScormRuntimeService(dbContext, isTestEnvironment: true);
+            var loggerMock = new Mock<ILogger<ScormRuntimeService>>();
+            var service = new ScormRuntimeService(dbContext, loggerMock.Object, isTestEnvironment: true);
 
             var userId = Guid.NewGuid();
             var courseId = Guid.NewGuid();
@@ -140,7 +148,8 @@ namespace ScormHostWeb.Tests
             using var dbContext = new ScormDbContext(new DbContextOptionsBuilder<ScormDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options);
-            var service = new ScormRuntimeService(dbContext);
+            var loggerMock = new Mock<ILogger<ScormRuntimeService>>();
+            var service = new ScormRuntimeService(dbContext, loggerMock.Object);
 
             var userId = Guid.NewGuid();
             var courseId = Guid.NewGuid();
@@ -159,7 +168,8 @@ namespace ScormHostWeb.Tests
             using var dbContext = new ScormDbContext(new DbContextOptionsBuilder<ScormDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options);
-            var service = new ScormRuntimeService(dbContext, isTestEnvironment: true);
+            var loggerMock = new Mock<ILogger<ScormRuntimeService>>();
+            var service = new ScormRuntimeService(dbContext, loggerMock.Object, isTestEnvironment: true);
 
             var userId = Guid.NewGuid();
             var courseId = Guid.NewGuid();

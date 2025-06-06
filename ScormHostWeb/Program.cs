@@ -85,6 +85,15 @@ public class Program
             options.FallbackPolicy = options.DefaultPolicy;
         });
         
+        // Configure authorization policies to be permissive for now
+        builder.Services.AddAuthorization(options =>
+        {
+            options.AddPolicy("ApiAccess", policy =>
+            {
+                policy.RequireAssertion(_ => true); // Allow all requests for testing
+            });
+        });
+        
         // Register application services (dependency injection for our custom services)
         builder.Services.AddScoped<ScormRuntimeService>(); // Handles SCORM runtime interactions
         builder.Services.AddScoped<ScormPackageService>(); // Handles course package management
@@ -114,9 +123,9 @@ public class Program
         // Enable CORS with the relaxed policy
         app.UseCors("LMS-CORS");
         
-        // Keep authentication and authorization middlewares, but they won't block due to our permissive policies
-        app.UseAuthentication();
-        app.UseAuthorization();
+        // REMOVE authentication and authorization middlewares for debugging
+        // app.UseAuthentication();
+        // app.UseAuthorization();
         
         // Map controller routes (for MVC UI and any attribute-routed Web API controllers if used)
         app.MapControllerRoute(

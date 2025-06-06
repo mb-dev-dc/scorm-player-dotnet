@@ -2,7 +2,23 @@
     Layout = null;
     var courseId = ViewBag.CourseId;
     var userId = ViewBag.UserId;
-    var launchUrl = ViewBag.LaunchUrl ?? $"~/scorm-packages/{courseId}/SHP/index_lms.html?courseId={courseId}&userId={userId}";
+    var attemptId = ViewBag.AttemptId;
+    
+    // Get the base URL and query parameters separately
+    var urlParts = (ViewBag.LaunchUrl ?? "").Split('?');
+    var baseUrl = urlParts.Length > 0 ? urlParts[0] : $"~/scorm-packages/{courseId}/SHP/index_lms.html";
+    
+    // Manually construct a clean URL
+    var cleanUrl = baseUrl;
+    if (!string.IsNullOrEmpty(attemptId?.ToString()))
+    {
+        cleanUrl += $"?attemptId={attemptId}&courseId={courseId}&userId={userId}";
+    }
+    else
+    {
+        // Fallback if no attemptId
+        cleanUrl += $"?courseId={courseId}&userId={userId}";
+    }
 }
 <!DOCTYPE html>
 <html>
@@ -99,7 +115,7 @@
     </div>
     
     <div id="iframe-container" class="iframe-container">
-        <iframe id="scorm-content" src="@launchUrl" allowfullscreen></iframe>
+        <iframe id="scorm-content" src="@cleanUrl" allowfullscreen></iframe>
     </div>
     
     <div id="dev-console">
@@ -161,7 +177,8 @@
             
             // Log successful initialization
             console.log('Development tools initialized');
-            console.log('SCORM content URL: ' + '@launchUrl');
+            console.log('SCORM content URL: ' + '@cleanUrl');
+            console.log('LaunchUrl passed to iframe:', '@cleanUrl');
         });
     </script>
 </body>

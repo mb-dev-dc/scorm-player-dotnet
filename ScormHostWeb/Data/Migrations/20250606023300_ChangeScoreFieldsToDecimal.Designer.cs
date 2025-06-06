@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ScormHost.Web.Data;
 
@@ -11,9 +12,11 @@ using ScormHost.Web.Data;
 namespace ScormHostWeb.Data.Migrations
 {
     [DbContext(typeof(ScormDbContext))]
-    partial class ScormDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250606023300_ChangeScoreFieldsToDecimal")]
+    partial class ChangeScoreFieldsToDecimal
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
