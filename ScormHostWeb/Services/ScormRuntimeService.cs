@@ -199,10 +199,37 @@ namespace ScormHost.Web.Services
         }
 
         /// <summary>
+        /// Transforms flat SCORM key-value pairs (e.g., "cmi.core.lesson_status") into a nested JObject structure.
+        /// </summary>
+        private JObject TransformFlatScormData(JObject flatData)
+        {
+            var nested = new JObject();
+            foreach (var prop in flatData.Properties())
+            {
+                var keys = prop.Name.Split('.');
+                JObject current = nested;
+                for (int i = 0; i < keys.Length - 1; i++)
+                {
+                    if (current[keys[i]] == null)
+                        current[keys[i]] = new JObject();
+                    current = (JObject)current[keys[i]];
+                }
+                current[keys[^1]] = prop.Value;
+            }
+            return nested;
+        }
+
+        /// <summary>
         /// Commits the current state of a SCORM attempt
         /// </summary>
         public async Task<bool> CommitAttemptAsync(Guid attemptId, JObject cmiData)
         {
+            // Transform flat SCORM data to nested if needed
+            if (cmiData.Properties().Any(p => p.Name.Contains(".")))
+            {
+                cmiData = TransformFlatScormData(cmiData);
+            }
+
             if (!_isTestEnvironment)
             {
                 using var transaction = await _dbContext.Database.BeginTransactionAsync();
@@ -266,13 +293,45 @@ namespace ScormHost.Web.Services
             }
         }
 
+        /// <summary>
+        /// Marks a SCORM attempt as finished
+        /// </summary>
+        public async Task<bool> FinishAttemptAsync(Guid attemptId)
+        {
+            try
+            {
+                var attempt = await _dbContext.Attempts.FindAsync(attemptId);
+                if (attempt == null)
+                {
+                    return false;
+                }
+
+                // Mark the attempt as completed if not already done
+                if (!attempt.CompletedOn.HasValue)
+                {
+                    attempt.CompletedOn = DateTime.UtcNow;
+                    attempt.CompletionStatus = "completed";
+                }
+
+                // Save changes to the database
+                await _dbContext.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Log the exception for debugging
+                Console.WriteLine($"Error finishing SCORM attempt: {ex.Message}");
+                throw;
+            }
+        }
+
         private void UpdateAttemptFromCmiData(ScormAttempt attempt, JObject cmiData)
         {
             // Handle different SCORM versions
             bool isScorm2004 = attempt.Course?.Version == "2004";
 
-            // Get the core data (structure differs between SCORM 1.2 and 2004)
-            JObject coreData = isScorm2004 ? cmiData : cmiData["core"] as JObject;
+            JObject cmi = cmiData["cmi"] as JObject ?? cmiData;
+            JObject coreData = isScorm2004 ? cmi : cmi["core"] as JObject;
 
             if (coreData == null)
             {
@@ -287,9 +346,8 @@ namespace ScormHost.Web.Services
                 attempt.LessonLocation = lessonLocation;
             }
 
-            // Update suspend_data
-            string suspendData = isScorm2004 ? cmiData["suspend_data"]?.ToString() : coreData["suspend_data"]?.ToString();
-
+            // Update suspend_data (always under cmi, not core, for both SCORM 1.2 and 2004)
+            string suspendData = cmi["suspend_data"]?.ToString();
             if (!string.IsNullOrEmpty(suspendData))
             {
                 attempt.SuspendData = suspendData;
@@ -465,41 +523,8 @@ namespace ScormHost.Web.Services
             }
             return TimeSpan.Zero;
         }
-
-        /// <summary>
-        /// Marks a SCORM attempt as finished
-        /// </summary>
-        public async Task<bool> FinishAttemptAsync(Guid attemptId)
-        {
-            try
-            {
-                var attempt = await _dbContext.Attempts.FindAsync(attemptId);
-                if (attempt == null)
-                {
-                    return false;
-                }
-
-                // Mark the attempt as completed if not already done
-                if (!attempt.CompletedOn.HasValue)
-                {
-                    attempt.CompletedOn = DateTime.UtcNow;
-                    attempt.CompletionStatus = "completed";
-                }
-
-                // Save changes to the database
-                await _dbContext.SaveChangesAsync();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                // Log the exception for debugging
-                Console.WriteLine($"Error finishing SCORM attempt: {ex.Message}");
-                throw;
-            }
-        }
     }
 
-    // DTOs for API responses
     public class CourseProgressInfo
     {
         public Guid UserId { get; set; }

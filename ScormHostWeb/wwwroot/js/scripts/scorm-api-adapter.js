@@ -90,22 +90,8 @@ async function saveToServer(endpoint) {
       return false;
     }
 
-    // Format the data as expected by the server
-    const dataToSend = {};
-    dataToSend.core = {};
-    if (scormData["cmi.core.lesson_status"]) dataToSend.core.lesson_status = scormData["cmi.core.lesson_status"];
-    if (scormData["cmi.core.lesson_location"]) dataToSend.core.lesson_location = scormData["cmi.core.lesson_location"];
-    if (scormData["cmi.core.session_time"]) dataToSend.core.session_time = scormData["cmi.core.session_time"];
-    if (scormData["cmi.core.exit"]) dataToSend.core.exit = scormData["cmi.core.exit"];
-    dataToSend.core.score = {};
-    if (scormData["cmi.core.score.raw"]) dataToSend.core.score.raw = scormData["cmi.core.score.raw"];
-    if (scormData["cmi.core.score.min"]) dataToSend.core.score.min = scormData["cmi.core.score.min"];
-    if (scormData["cmi.core.score.max"]) dataToSend.core.score.max = scormData["cmi.core.score.max"];
-    if (scormData["cmi.suspend_data"]) dataToSend.suspend_data = scormData["cmi.suspend_data"];
-
-    // Critical - Construct the request body to exactly match the PayloadWrapper expectation
     const requestBody = {
-      payload: dataToSend
+      payload: scormData
     };
 
     console.log("Sending data to server:", endpoint);

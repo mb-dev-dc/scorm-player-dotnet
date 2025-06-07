@@ -56,11 +56,10 @@ namespace ScormHost.Web.Controllers.Api
                 _logger.LogDebug("Committing data for attempt {AttemptId}. Payload: {Payload}",
                     attemptId, jObjectPayload.ToString());
 
-                // Access like this:
-                var lessonStatus = jObjectPayload["payload"]?["core"]?["lesson_status"]?.ToString();
-                var rawScore = jObjectPayload["payload"]?["core"]?["score"]?["raw"]?.ToString();
+                // Extract the actual payload object if wrapped
+                var actualPayload = jObjectPayload["payload"] as JObject ?? jObjectPayload;
 
-                var success = await _runtimeService.CommitAttemptAsync(attemptId, jObjectPayload);
+                var success = await _runtimeService.CommitAttemptAsync(attemptId, actualPayload);
 
                 if (!success)
                 {
