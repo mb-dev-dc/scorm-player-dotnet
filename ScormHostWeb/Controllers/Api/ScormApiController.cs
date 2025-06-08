@@ -109,6 +109,43 @@ namespace ScormHost.Web.Controllers.Api
             }
         }
 
+        [HttpPost("log")]
+        public async Task<IActionResult> Log([FromBody] object logEntry)
+        {
+            try
+            {
+                // Robust conversion to JObject for .NET 9+ model binding
+                JObject jObjectLog;
+                if (logEntry is JObject jObj)
+                {
+                    jObjectLog = jObj;
+                }
+                else if (logEntry is System.Text.Json.JsonElement jsonElement)
+                {
+                    jObjectLog = JObject.Parse(jsonElement.GetRawText());
+                }
+                else
+                {
+                    jObjectLog = JObject.FromObject(logEntry);
+                }
+
+                var logText = $"{DateTime.UtcNow:O} | {jObjectLog?.ToString(Newtonsoft.Json.Formatting.None)}\n";
+                var logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "App_Data", "scorm-api-log.txt");
+                var logDir = Path.GetDirectoryName(logFilePath);
+                if (!Directory.Exists(logDir))
+                {
+                    Directory.CreateDirectory(logDir);
+                }
+                await System.IO.File.AppendAllTextAsync(logFilePath, logText);
+                return Ok(new { saved = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to write SCORM API log entry");
+                return StatusCode(500, new { error = "Failed to write log", details = ex.Message });
+            }
+        }
+
         //public class PayloadWrapper
         //{
         //    public JObject payload { get; set; }

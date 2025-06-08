@@ -3,6 +3,7 @@
     var courseId = ViewBag.CourseId;
     var userId = ViewBag.UserId;
     var attemptId = ViewBag.AttemptId;
+    var resumeData = ViewBag.ResumeData != null ? Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.ResumeData) : "null";
     
     // Get the base URL and query parameters separately
     var urlParts = (ViewBag.LaunchUrl ?? "").Split('?');
@@ -24,6 +25,10 @@
 <html>
 <head>
     <title>SCORM Player - Development Mode</title>
+    <!-- Expose resume data globally for the adapter BEFORE loading the adapter script -->
+    <script>
+        window.scormResumeData = @Html.Raw(resumeData);
+    </script>
     <script src="~/js/scripts/scorm-api-adapter.js"></script>
     <style>
         body, html {
@@ -179,6 +184,9 @@
             console.log('Development tools initialized');
             console.log('SCORM content URL: ' + '@cleanUrl');
             console.log('LaunchUrl passed to iframe:', '@cleanUrl');
+            
+            // Log resume data for debugging
+            console.log('ResumeData:', window.scormResumeData);
         });
     </script>
 </body>

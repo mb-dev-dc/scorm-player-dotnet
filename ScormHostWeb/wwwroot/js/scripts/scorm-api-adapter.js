@@ -18,9 +18,24 @@ const scormData = {
   "cmi.score.scaled": "0"
 };
 
+// Helper to send logs to the backend
+async function sendLogToServer(logObj) {
+  try {
+    await fetch('/api/scorm/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(logObj)
+    });
+  } catch (e) {
+    // Ignore errors for logging
+  }
+}
+
 // Helper function to log API calls during development
 function logApiCall(version, func, args, result) {
-  console.log(`SCORM ${version} | ${func}(${args ? args : ''}) => ${result}`);
+  const logMsg = `SCORM ${version} | ${func}(${args ? args : ''}) => ${result}`;
+  console.log(logMsg);
+  sendLogToServer({ version, func, args, result, timestamp: new Date().toISOString() });
 }
 
 // Update getQueryParams to work correctly whether in main window or iframe
@@ -138,6 +153,49 @@ async function saveToServer(endpoint) {
     return false;
   }
 }
+
+// Helper to initialize SCORM data from resumeData
+let resumeDataFromMessage = null;
+
+window.addEventListener('message', function(event) {
+  if (event && event.data && event.data.type === 'scormResumeData') {
+    resumeDataFromMessage = event.data.data;
+    initializeScormDataFromResume();
+  }
+});
+
+function initializeScormDataFromResume() {
+  // Try to get resumeData from message, this window, or parent
+  var resumeData = resumeDataFromMessage || window.scormResumeData || (window.parent && window.parent.scormResumeData);
+  if (resumeData) {
+    // SCORM 1.2
+    if (resumeData.LessonLocation) {
+      scormData["cmi.core.lesson_location"] = resumeData.LessonLocation;
+      console.log("cmi.core.lesson_location", resumeData.LessonLocation);
+    }
+    if (resumeData.SuspendData) {
+      scormData["cmi.suspend_data"] = resumeData.SuspendData;
+      console.log("cmi.suspend_data", resumeData.SuspendData);
+    }
+    if (resumeData.CompletionStatus) {
+      scormData["cmi.core.lesson_status"] = resumeData.CompletionStatus;
+      scormData["cmi.completion_status"] = resumeData.CompletionStatus;
+    }
+    if (resumeData.SuccessStatus) {
+      scormData["cmi.success_status"] = resumeData.SuccessStatus;
+    }
+    if (resumeData.ScoreRaw !== undefined && resumeData.ScoreRaw !== null) {
+      scormData["cmi.core.score.raw"] = resumeData.ScoreRaw.toString();
+    }
+    if (resumeData.TotalTime) {
+      // Optionally set total time if needed
+    }
+    console.log("SCORM data initialized from resumeData", resumeData);
+  }
+}
+
+// Call on load (in case resumeData is available immediately)
+initializeScormDataFromResume();
 
 // SCORM 1.2 API Implementation
 window.API = {
