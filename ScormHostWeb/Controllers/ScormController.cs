@@ -20,7 +20,8 @@ namespace ScormHost.Web.Controllers
             if (!courseId.HasValue)
             {
                 // Use a default course ID for development if not provided
-                courseId = Guid.Parse("831663EE-325E-47E2-B7F9-4B23A8696798"); // Default course ID for development
+                //courseId = Guid.Parse("831663EE-325E-47E2-B7F9-4B23A8696798"); // Default course ID for development
+                courseId = Guid.Parse("7F2CFB1E-2243-493D-969D-5F4E3A767A0F"); // Default course ID for development
             }
 
             // For development, always use a default user ID if not provided
