@@ -35,9 +35,19 @@ public class Program
         // Add Minimal APIs support (needs endpoints API explorer if using Swagger, etc.)
         builder.Services.AddEndpointsApiExplorer();
         
-        // Use SQL Server with the connection string from appsettings.json
-        builder.Services.AddDbContext<ScormDbContext>(options =>
-            options.UseSqlServer(builder.Configuration.GetConnectionString("ScormDbConnection")));
+        // Configure database based on settings
+        var useInMemory = builder.Configuration.GetValue<bool>("Database:UseInMemory", false);
+        if (useInMemory)
+        {
+            var dbName = builder.Configuration.GetValue<string>("Database:InMemoryDatabaseName") ?? "ScormHostDb";
+            builder.Services.AddDbContext<ScormDbContext>(options =>
+                options.UseInMemoryDatabase(dbName));
+        }
+        else
+        {
+            builder.Services.AddDbContext<ScormDbContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("ScormDbConnection")));
+        }
 
         // Configure JWT authentication with relaxed validation for development
         builder.Services.AddAuthentication(options =>
@@ -108,6 +118,13 @@ public class Program
         });
 
         var app = builder.Build();
+
+        // Initialize database with seed data
+        using (var scope = app.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ScormDbContext>();
+            DatabaseSeeder.SeedAsync(context);
+        }
 
         // Configure Middleware pipeline
         if (!app.Environment.IsDevelopment())
