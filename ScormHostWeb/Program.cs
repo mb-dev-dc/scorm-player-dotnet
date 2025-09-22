@@ -32,6 +32,9 @@ public class Program
         // Add MVC controllers with views (for UI pages)
         builder.Services.AddControllersWithViews();
         
+        // Update the code to ensure Razor Runtime Compilation is properly configured
+        builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
+
         // Add Minimal APIs support (needs endpoints API explorer if using Swagger, etc.)
         builder.Services.AddEndpointsApiExplorer();
         

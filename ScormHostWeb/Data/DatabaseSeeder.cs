@@ -79,7 +79,7 @@ namespace ScormHost.Web.Data
                     CourseId = Guid.Parse("3A4900BF-A18D-4372-9158-47710F5E1BDC"),
                     Title = "Development Test Course",
                     Version = "1.2",
-                    PackagePath = "SHPV3",
+                    PackagePath = "SHP",
                     LaunchScoId = "index_lms.html",
                 }
             };

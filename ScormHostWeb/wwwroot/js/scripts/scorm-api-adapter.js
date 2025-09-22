@@ -36,6 +36,24 @@ function logApiCall(version, func, args, result) {
   const logMsg = `SCORM ${version} | ${func}(${args ? args : ''}) => ${result}`;
   console.log(logMsg);
   sendLogToServer({ version, func, args, result, timestamp: new Date().toISOString() });
+
+  // Any API call indicates activity - trigger progress check
+  if (func === 'LMSSetValue' || func === 'SetValue' ||
+      func === 'LMSCommit' || func === 'Commit' ||
+      func === 'LMSGetValue' || func === 'GetValue') {
+    console.log(`🎯 API activity detected (${func}), scheduling progress check...`);
+
+    // Immediate check for SetValue calls
+    if (func === 'LMSSetValue' || func === 'SetValue') {
+      setTimeout(() => {
+        console.log('🔍 Post-SetValue progress check...');
+        trackProgressChange();
+      }, 100);
+    }
+
+    // Also mark user interaction for the monitor
+    userInteractionDetected = true;
+  }
 }
 
 // Enhanced getQueryParams with fallback mechanisms and better error handling
@@ -647,13 +665,16 @@ window.API = {
       startAutoSave();
       autoSaveStarted = true;
     }
+    // Start progress monitoring
+    startProgressMonitoring();
     logApiCall("1.2", "LMSInitialize", param, "true");
     return "true";
   },
   
   LMSFinish: function(param) {
-    // Stop auto-save and do final commit
+    // Stop auto-save and progress monitoring
     stopAutoSave();
+    stopProgressMonitoring();
     const params = getQueryParams();
     // Do final save asynchronously in background
     saveToServer(`/api/scorm/attempts/${params.attemptId}/commit`).then(() => {
@@ -708,6 +729,7 @@ window.API = {
     if (element.includes('lesson_status') || element.includes('completion_status') ||
         element.includes('lesson_location') || element.includes('location') ||
         element.includes('score') || element.includes('suspend_data')) {
+      console.log(`🔄 Triggering progress change for field: ${element}`);
       trackProgressChange();
     }
 
@@ -756,13 +778,16 @@ window.API_1484_11 = {
       startAutoSave();
       autoSaveStarted = true;
     }
+    // Start progress monitoring
+    startProgressMonitoring();
     logApiCall("2004", "Initialize", param, "true");
     return "true";
   },
   
   Terminate: function(param) {
-    // Stop auto-save and do final commit
+    // Stop auto-save and progress monitoring
     stopAutoSave();
+    stopProgressMonitoring();
     const params = getQueryParams();
     // Do final save asynchronously in background
     saveToServer(`/api/scorm/attempts/${params.attemptId}/commit`).then(() => {
@@ -816,6 +841,7 @@ window.API_1484_11 = {
     // Track progress changes for important fields
     if (element.includes('completion_status') || element.includes('success_status') ||
         element.includes('location') || element.includes('score') || element.includes('suspend_data')) {
+      console.log(`🔄 Triggering progress change for SCORM 2004 field: ${element}`);
       trackProgressChange();
     }
 
@@ -990,12 +1016,75 @@ function testDataFlow() {
   }, 1000);
 }
 
+function debugProgressTracking() {
+  console.log("🔧 Progress Tracking Debug Report");
+  console.log("================================");
+
+  // Current SCORM data
+  console.log("Current SCORM Data:");
+  console.log("- lesson_status:", scormData["cmi.core.lesson_status"]);
+  console.log("- completion_status:", scormData["cmi.completion_status"]);
+  console.log("- lesson_location:", scormData["cmi.core.lesson_location"]);
+  console.log("- location:", scormData["cmi.location"]);
+  console.log("- score.raw:", scormData["cmi.core.score.raw"]);
+  console.log("- suspend_data length:", (scormData["cmi.suspend_data"] || "").length);
+
+  // Calculate current progress
+  const currentProgress = updateProgressDisplay();
+  console.log("- Calculated progress:", currentProgress + "%");
+
+  // Monitoring status
+  console.log("\nMonitoring Status:");
+  console.log("- Progress monitoring active:", !!progressMonitorInterval);
+  console.log("- Auto-save active:", !!autoSaveInterval);
+  console.log("- User interaction detected:", userInteractionDetected);
+
+  // Test progress calculation
+  console.log("\nTesting Progress Calculation:");
+  const testLocation = "lesson_5";
+  const testProgress = calculateProgressFromLocation(testLocation);
+  console.log(`- Test location "${testLocation}" → ${testProgress}%`);
+
+  // Force a progress update
+  console.log("\nForcing progress update...");
+  trackProgressChange();
+
+  return {
+    scormData: scormData,
+    progress: currentProgress,
+    monitoringActive: !!progressMonitorInterval
+  };
+}
+
+function simulateProgressChange() {
+  console.log("🎭 Simulating progress change...");
+
+  // Simulate a lesson location change
+  const currentLocation = scormData["cmi.core.lesson_location"] || "";
+  const newLocation = "lesson_" + (Math.floor(Math.random() * 10) + 1);
+
+  console.log(`Changing lesson location from "${currentLocation}" to "${newLocation}"`);
+  window.API.LMSSetValue("cmi.core.lesson_location", newLocation);
+
+  // Also update score
+  const newScore = Math.floor(Math.random() * 100);
+  console.log(`Setting score to ${newScore}`);
+  window.API.LMSSetValue("cmi.core.score.raw", newScore.toString());
+
+  // Commit the changes
+  window.API.LMSCommit("");
+
+  console.log("✅ Simulated progress change complete");
+}
+
 // Global functions for external access
 window.scormResumeAttempt = resumeAttempt;
 window.scormCheckResumeStatus = checkResumeStatus;
 window.scormDiagnosticReport = diagnosticReport;
 window.scormForceCommit = forceCommit;
 window.scormTestDataFlow = testDataFlow;
+window.scormDebugProgress = debugProgressTracking;
+window.scormSimulateProgress = simulateProgressChange;
 
 // Make APIs available for discovery by SCORM content
 function findAPI(win) {
@@ -1058,32 +1147,44 @@ function updateProgressDisplay() {
       if (scoreRaw > 0 && scoreMax > 0) {
         progressPercentage = (scoreRaw / scoreMax) * 100;
       } else {
-        // Basic heuristic based on lesson location or suspend data
+        // Enhanced heuristic based on lesson location patterns
         const lessonLocation = scormData["cmi.core.lesson_location"] || scormData["cmi.location"] || "";
         const suspendData = scormData["cmi.suspend_data"] || "";
 
         if (lessonLocation || suspendData) {
-          progressPercentage = Math.max(10, progressPercentage); // At least 10% if there's progress
+          // Try to extract progress from lesson location patterns
+          const locationProgress = calculateProgressFromLocation(lessonLocation);
+          const suspendProgress = calculateProgressFromSuspendData(suspendData);
+
+          progressPercentage = Math.max(locationProgress, suspendProgress, 10); // At least 10% if there's progress
         }
       }
     }
 
-    // Update progress display in parent window if possible
+    // Ensure progress is between 0 and 100
+    progressPercentage = Math.max(0, Math.min(100, progressPercentage));
+
+    // Send progress update to parent window via postMessage
     if (window.parent && window.parent !== window) {
       try {
-        const progressBar = window.parent.document.querySelector('.progress-bar');
-        const progressText = window.parent.document.querySelector('.progress-text');
-
-        if (progressBar) {
-          progressBar.style.width = progressPercentage + '%';
-        }
-        if (progressText) {
-          progressText.textContent = Math.round(progressPercentage) + '% complete';
-        }
+        window.parent.postMessage({
+          type: 'scormProgressUpdate',
+          progressPercent: progressPercentage,
+          timestamp: new Date().toISOString(),
+          source: 'scorm-api-adapter'
+        }, '*');
       } catch (e) {
-        // Ignore cross-origin errors
+        console.warn("Could not send progress update to parent:", e.message);
       }
     }
+
+      const spans = document.querySelectorAll('.progress-text');
+      spans.forEach(span => {
+          span.innerHTML = progressPercentage + ' % complete';
+      });
+
+      console.log("---- update progress display -----");
+      console.log(progressPercentage);
 
     console.log(`📊 Progress updated: ${progressPercentage}%`);
     return progressPercentage;
@@ -1091,6 +1192,93 @@ function updateProgressDisplay() {
     console.error("Error updating progress display:", error);
     return 0;
   }
+}
+
+// Helper function to calculate progress from lesson location
+function calculateProgressFromLocation(location) {
+  if (!location) return 0;
+
+  // Common patterns in lesson locations
+  const patterns = [
+    // Pattern: "lesson_1", "lesson_2", etc.
+    { regex: /lesson[_\s]*(\d+)/i, calculate: (match) => {
+      const lessonNum = parseInt(match[1]);
+      // Assume 10 lessons max, each worth 10%
+      return Math.min(lessonNum * 10, 90);
+    }},
+
+    // Pattern: "slide_5", "page_3", etc.
+    { regex: /(slide|page|step)[_\s]*(\d+)/i, calculate: (match) => {
+      const slideNum = parseInt(match[2]);
+      // Assume 20 slides max, each worth 5%
+      return Math.min(slideNum * 5, 95);
+    }},
+
+    // Pattern: "section1_complete", "module2_intro", etc.
+    { regex: /(section|module|chapter)[_\s]*(\d+)/i, calculate: (match) => {
+      const sectionNum = parseInt(match[2]);
+      // Assume 5 sections max, each worth 20%
+      return Math.min(sectionNum * 20, 80);
+    }},
+
+    // Pattern: percentage-like "75_percent" or "0.75"
+    { regex: /(\d+)[_\s]*percent/i, calculate: (match) => {
+      return Math.min(parseInt(match[1]), 100);
+    }},
+
+    // Pattern: decimal progress "0.25", "0.5", etc.
+    { regex: /^0\.(\d+)$/, calculate: (match) => {
+      return Math.min(parseFloat('0.' + match[1]) * 100, 100);
+    }}
+  ];
+
+  for (const pattern of patterns) {
+    const match = location.match(pattern.regex);
+    if (match) {
+      const progress = pattern.calculate(match);
+      console.log(`🎯 Calculated progress from location "${location}": ${progress}%`);
+      return progress;
+    }
+  }
+
+  // Fallback: if location exists but no pattern matches, give some progress
+  return 5;
+}
+
+// Helper function to calculate progress from suspend data
+function calculateProgressFromSuspendData(suspendData) {
+  if (!suspendData) return 0;
+
+  try {
+    // Try to parse as JSON first
+    const data = JSON.parse(suspendData);
+
+    // Look for common progress indicators
+    if (data.progress !== undefined) {
+      return Math.min(parseFloat(data.progress) || 0, 100);
+    }
+    if (data.completion !== undefined) {
+      return Math.min(parseFloat(data.completion) * 100 || 0, 100);
+    }
+    if (data.percentage !== undefined) {
+      return Math.min(parseFloat(data.percentage) || 0, 100);
+    }
+
+  } catch (e) {
+    // Not JSON, try to extract progress from string patterns
+    const progressMatch = suspendData.match(/progress[:\s]*(\d+)/i);
+    if (progressMatch) {
+      return Math.min(parseInt(progressMatch[1]), 100);
+    }
+
+    const percentMatch = suspendData.match(/(\d+)%/);
+    if (percentMatch) {
+      return Math.min(parseInt(percentMatch[1]), 100);
+    }
+  }
+
+  // Fallback: if suspend data exists but no progress found, give minimal progress
+  return Math.min(suspendData.length / 10, 15); // Rough heuristic based on data length
 }
 
 // Update progress whenever data changes
@@ -1111,6 +1299,176 @@ function trackProgressChange() {
   }
 }
 
+// Periodic progress monitoring to catch changes we might miss
+let progressMonitorInterval;
+let userInteractionDetected = false;
+
+function startProgressMonitoring() {
+  if (progressMonitorInterval) return; // Already started
+
+  let lastProgressUpdate = 0;
+  let lastDataSnapshot = JSON.stringify(scormData);
+  let lastLessonLocation = scormData["cmi.core.lesson_location"] || scormData["cmi.location"] || "";
+
+  // Add user interaction listeners
+  addUserInteractionListeners();
+
+  progressMonitorInterval = setInterval(() => {
+    const currentDataSnapshot = JSON.stringify(scormData);
+    const currentLessonLocation = scormData["cmi.core.lesson_location"] || scormData["cmi.location"] || "";
+
+    // Check if SCORM data has changed
+    if (currentDataSnapshot !== lastDataSnapshot) {
+      console.log('📊 Detected SCORM data change, updating progress...');
+      console.log('Previous data keys:', Object.keys(JSON.parse(lastDataSnapshot)));
+      console.log('Current data keys:', Object.keys(scormData));
+      trackProgressChange();
+      lastDataSnapshot = currentDataSnapshot;
+    }
+
+    // Specifically watch for lesson location changes (most common progress indicator)
+    if (currentLessonLocation !== lastLessonLocation) {
+      console.log(`📍 Lesson location changed: "${lastLessonLocation}" → "${currentLessonLocation}"`);
+      trackProgressChange();
+      lastLessonLocation = currentLessonLocation;
+    }
+
+    // If user interaction was detected, force a progress update
+    if (userInteractionDetected) {
+      console.log('👆 User interaction detected, forcing progress update...');
+      updateProgressDisplay();
+      userInteractionDetected = false;
+    }
+
+    // Also update progress periodically even if no data change detected
+    // (in case the content is updating progress in a way we don't detect)
+    const now = Date.now();
+    if (now - lastProgressUpdate > 10000) { // Every 10 seconds (more frequent)
+      console.log('⏰ Periodic progress update...');
+      updateProgressDisplay();
+      lastProgressUpdate = now;
+    }
+  }, 2000); // Check every 2 seconds (more frequent)
+
+  console.log('📊 Progress monitoring started with enhanced detection');
+}
+
+function addUserInteractionListeners() {
+  // Listen for clicks, which often trigger navigation in SCORM content
+  document.addEventListener('click', function(event) {
+    console.log('👆 Click detected, will check progress on next cycle');
+    userInteractionDetected = true;
+
+    // Also force an immediate check after a short delay
+    setTimeout(() => {
+      console.log('🔍 Post-click progress check...');
+      trackProgressChange();
+    }, 500);
+  }, true); // Use capture to catch iframe clicks too
+
+  // Listen for keyboard navigation
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft' ||
+        event.key === 'Enter' || event.key === ' ') {
+      console.log('⌨️ Navigation key detected:', event.key);
+      userInteractionDetected = true;
+
+      setTimeout(() => {
+        console.log('🔍 Post-keypress progress check...');
+        trackProgressChange();
+      }, 500);
+    }
+  }, true);
+
+  // Listen for iframe load events (page changes)
+  const iframe = document.getElementById('scorm-content');
+  if (iframe) {
+    iframe.addEventListener('load', function() {
+      console.log('🔄 Iframe loaded, checking progress...');
+      setTimeout(() => {
+        trackProgressChange();
+        // Try to add listeners to iframe content
+        addIframeInteractionListeners(iframe);
+      }, 1000); // Wait a bit for the page to initialize
+    });
+
+    // Also add listeners initially if iframe is already loaded
+    setTimeout(() => {
+      addIframeInteractionListeners(iframe);
+    }, 2000);
+  }
+}
+
+function addIframeInteractionListeners(iframe) {
+  try {
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+    if (iframeDoc) {
+      // Add click listener to iframe content
+      iframeDoc.addEventListener('click', function(event) {
+        console.log('👆 Click detected in iframe content');
+        userInteractionDetected = true;
+
+        // Check for next/previous button clicks
+        const target = event.target;
+        const targetText = target.textContent?.toLowerCase() || '';
+        const targetClass = target.className?.toLowerCase() || '';
+        const targetId = target.id?.toLowerCase() || '';
+
+        if (targetText.includes('next') || targetText.includes('continue') ||
+            targetClass.includes('next') || targetClass.includes('continue') ||
+            targetId.includes('next') || targetId.includes('continue')) {
+          console.log('🔄 Next/Continue button clicked, forcing progress check');
+          setTimeout(() => {
+            console.log('🔍 Post-navigation progress check...');
+            trackProgressChange();
+          }, 1000); // Longer delay for page transitions
+        }
+
+        setTimeout(() => {
+          trackProgressChange();
+        }, 500);
+      }, true);
+
+      // Add other interaction listeners to iframe
+      iframeDoc.addEventListener('keydown', function(event) {
+        if (event.key === 'ArrowRight' || event.key === 'Enter' || event.key === ' ') {
+          console.log('⌨️ Navigation key in iframe:', event.key);
+          userInteractionDetected = true;
+          setTimeout(() => trackProgressChange(), 500);
+        }
+      }, true);
+
+      console.log('✅ Successfully added interaction listeners to iframe content');
+    } else {
+      console.log('⚠️ Cannot access iframe content (cross-origin?)');
+    }
+  } catch (e) {
+    console.log('⚠️ Cannot add iframe listeners (cross-origin):', e.message);
+
+    // Fallback: monitor iframe src changes
+    let lastIframeSrc = iframe.src;
+    const srcMonitor = setInterval(() => {
+      if (iframe.src !== lastIframeSrc) {
+        console.log('🔄 Iframe src changed, checking progress...');
+        lastIframeSrc = iframe.src;
+        setTimeout(() => trackProgressChange(), 1000);
+      }
+    }, 1000);
+
+    // Store interval for cleanup
+    iframe._srcMonitor = srcMonitor;
+  }
+}
+
+function stopProgressMonitoring() {
+  if (progressMonitorInterval) {
+    clearInterval(progressMonitorInterval);
+    progressMonitorInterval = null;
+    console.log('📊 Progress monitoring stopped');
+  }
+}
+
 // Log when the SCORM APIs are ready
 console.log("SCORM API adapters initialized for development mode");
 console.log("APIs available: window.API, window.API_1484_11, window.findAPI()");
@@ -1123,6 +1481,15 @@ console.log("- window.API exists:", typeof window.API !== 'undefined');
 console.log("- window.API_1484_11 exists:", typeof window.API_1484_11 !== 'undefined');
 console.log("- Current scormData:", scormData);
 
-// Initialize progress display
+// Initialize progress display and start monitoring for content that doesn't call Initialize
 updateProgressDisplay();
+
+// Start progress monitoring after a short delay if no API calls have been made
+// This helps with content that doesn't properly call Initialize
+setTimeout(() => {
+  if (!progressMonitorInterval) {
+    console.log('📊 Auto-starting progress monitoring (no Initialize call detected)');
+    startProgressMonitoring();
+  }
+}, 3000);
 
