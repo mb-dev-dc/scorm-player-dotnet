@@ -139,6 +139,27 @@
             color: #666;
         }
 
+        /* Progress bar styles */
+        .progress-container {
+            width: 200px;
+            height: 8px;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            margin: 2px 0;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #4caf50;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .progress-text {
+            font-size: 10px;
+            color: #666;
+            margin-left: 4px;
+        }
+
         /* Debug panel styles */
         #debug-panel {
             position: fixed;
@@ -245,12 +266,24 @@
             {
                 <div class="resume-indicator">
                     <span class="resume-badge">RESUMING</span>
-                    <span class="resume-details">
-                        Attempt @ViewBag.AttemptNumber |
-                        Status: @ViewBag.CompletionStatus |
-                        @if (ViewBag.ScoreRaw != null) { <text>Score: @ViewBag.ScoreRaw | </text> }
-                        Last accessed: @(ViewBag.LastAccessedOn != null ? ((DateTime)ViewBag.LastAccessedOn).ToString("MM/dd/yyyy HH:mm") : "Unknown")
-                    </span>
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span class="resume-details">
+                            Attempt @ViewBag.AttemptNumber |
+                            Status: @ViewBag.CompletionStatus |
+                            @if (ViewBag.ScoreRaw != null) { <text>Score: @ViewBag.ScoreRaw | </text> }
+                            Last accessed: @(ViewBag.LastAccessedOn != null ? ((DateTime)ViewBag.LastAccessedOn).ToString("MM/dd/yyyy HH:mm") : "Unknown")
+                        </span>
+                        @{
+                            var resumeData = ViewBag.ResumeData as dynamic;
+                            var progressPercent = resumeData?.ProgressPercentage ?? 0;
+                        }
+                        <div style="display: flex; align-items: center;">
+                            <div class="progress-container">
+                                <div class="progress-bar" style="width: @(progressPercent)%"></div>
+                            </div>
+                            <span class="progress-text">@(progressPercent)% complete</span>
+                        </div>
+                    </div>
                 </div>
             }
             else

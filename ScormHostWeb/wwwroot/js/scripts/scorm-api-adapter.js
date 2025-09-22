@@ -703,6 +703,14 @@ window.API = {
     }
 
     logApiCall("1.2", "LMSSetValue", `${element}, ${value}`, "true");
+
+    // Track progress changes for important fields
+    if (element.includes('lesson_status') || element.includes('completion_status') ||
+        element.includes('lesson_location') || element.includes('location') ||
+        element.includes('score') || element.includes('suspend_data')) {
+      trackProgressChange();
+    }
+
     return "true";
   },
   
@@ -804,6 +812,13 @@ window.API_1484_11 = {
     }
 
     logApiCall("2004", "SetValue", `${element}, ${value}`, "true");
+
+    // Track progress changes for important fields
+    if (element.includes('completion_status') || element.includes('success_status') ||
+        element.includes('location') || element.includes('score') || element.includes('suspend_data')) {
+      trackProgressChange();
+    }
+
     return "true";
   },
   
@@ -1025,6 +1040,77 @@ if (window.parent && window.parent !== window) {
   }
 }
 
+// Progress tracking functionality
+function updateProgressDisplay() {
+  try {
+    // Calculate current progress based on SCORM data
+    let progressPercentage = 0;
+
+    // Check completion status first
+    const completionStatus = scormData["cmi.core.lesson_status"] || scormData["cmi.completion_status"];
+    if (completionStatus === "completed" || completionStatus === "passed") {
+      progressPercentage = 100;
+    } else {
+      // Try to calculate from score
+      const scoreRaw = parseFloat(scormData["cmi.core.score.raw"] || scormData["cmi.score.raw"] || "0");
+      const scoreMax = parseFloat(scormData["cmi.core.score.max"] || scormData["cmi.score.max"] || "100");
+
+      if (scoreRaw > 0 && scoreMax > 0) {
+        progressPercentage = (scoreRaw / scoreMax) * 100;
+      } else {
+        // Basic heuristic based on lesson location or suspend data
+        const lessonLocation = scormData["cmi.core.lesson_location"] || scormData["cmi.location"] || "";
+        const suspendData = scormData["cmi.suspend_data"] || "";
+
+        if (lessonLocation || suspendData) {
+          progressPercentage = Math.max(10, progressPercentage); // At least 10% if there's progress
+        }
+      }
+    }
+
+    // Update progress display in parent window if possible
+    if (window.parent && window.parent !== window) {
+      try {
+        const progressBar = window.parent.document.querySelector('.progress-bar');
+        const progressText = window.parent.document.querySelector('.progress-text');
+
+        if (progressBar) {
+          progressBar.style.width = progressPercentage + '%';
+        }
+        if (progressText) {
+          progressText.textContent = Math.round(progressPercentage) + '% complete';
+        }
+      } catch (e) {
+        // Ignore cross-origin errors
+      }
+    }
+
+    console.log(`📊 Progress updated: ${progressPercentage}%`);
+    return progressPercentage;
+  } catch (error) {
+    console.error("Error updating progress display:", error);
+    return 0;
+  }
+}
+
+// Update progress whenever data changes
+function trackProgressChange() {
+  // Update progress display
+  updateProgressDisplay();
+
+  // Send real-time update to server if auto-save is not active
+  if (!autoSaveInterval) {
+    const params = getQueryParams();
+    if (params.attemptId) {
+      // Debounced save to avoid too frequent calls
+      clearTimeout(window.progressUpdateTimeout);
+      window.progressUpdateTimeout = setTimeout(() => {
+        saveToServer(`/api/scorm/attempts/${params.attemptId}/commit`);
+      }, 2000);
+    }
+  }
+}
+
 // Log when the SCORM APIs are ready
 console.log("SCORM API adapters initialized for development mode");
 console.log("APIs available: window.API, window.API_1484_11, window.findAPI()");
@@ -1036,4 +1122,7 @@ console.log("API Discovery Test:");
 console.log("- window.API exists:", typeof window.API !== 'undefined');
 console.log("- window.API_1484_11 exists:", typeof window.API_1484_11 !== 'undefined');
 console.log("- Current scormData:", scormData);
+
+// Initialize progress display
+updateProgressDisplay();
 

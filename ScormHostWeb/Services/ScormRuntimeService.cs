@@ -77,7 +77,9 @@ namespace ScormHost.Web.Services
                 StartedOn = attempt.StartedOn,
                 CompletedOn = attempt.CompletedOn,
                 LessonLocation = attempt.LessonLocation,
-                SuspendData = attempt.SuspendData
+                SuspendData = attempt.SuspendData,
+                ProgressPercentage = CalculateProgressPercentage(attempt),
+                AttemptNumber = attempt.AttemptNumber
             };
         }
 
@@ -142,6 +144,7 @@ namespace ScormHost.Web.Services
             {
                 // Update LastAccessedOn for the existing attempt
                 attempt.LastAccessedOn = DateTime.UtcNow;
+                attemptNumber = attempt.AttemptNumber; // Use the existing attempt's number
                 await _dbContext.SaveChangesAsync();
             }
 
@@ -192,6 +195,9 @@ namespace ScormHost.Web.Services
             // Log the generated launch URL for debugging
             _logger.LogDebug("Generated LaunchUrl: {LaunchUrl}", launchUrl);
 
+            // Calculate progress percentage
+            var progressPercentage = CalculateProgressPercentage(attempt);
+
             // Include resume data if available
             var resumeData = new
             {
@@ -204,9 +210,10 @@ namespace ScormHost.Web.Services
                 ScoreMin = attempt.ScoreMin,
                 ScoreScaled = attempt.ScoreScaled,
                 TotalTime = attempt.TotalTime,
-                AttemptNumber = attempt.AttemptNumber,
+                AttemptNumber = attemptNumber, // Use the calculated attempt number
                 StartedOn = attempt.StartedOn,
                 LastAccessedOn = attempt.LastAccessedOn,
+                ProgressPercentage = progressPercentage,
                 IsResume = !string.IsNullOrEmpty(attempt.LessonLocation) ||
                           !string.IsNullOrEmpty(attempt.SuspendData) ||
                           attempt.CompletionStatus != "not attempted"
@@ -491,6 +498,103 @@ namespace ScormHost.Web.Services
             Console.WriteLine($"SuspendData: {attempt.SuspendData}");
         }
 
+        /// <summary>
+        /// Calculates progress percentage based on completion status and score
+        /// </summary>
+        private decimal CalculateProgressPercentage(ScormAttempt attempt)
+        {
+            // Check completion status first
+            if (attempt.CompletionStatus == "completed")
+            {
+                return 100m;
+            }
+
+            if (attempt.CompletionStatus == "passed")
+            {
+                return 100m;
+            }
+
+            // For incomplete attempts, try to calculate based on available data
+            decimal progressPercentage = 0m;
+
+            // Use score as progress indicator if available
+            if (attempt.ScoreRaw.HasValue && attempt.ScoreMax.HasValue && attempt.ScoreMax.Value > 0)
+            {
+                progressPercentage = (attempt.ScoreRaw.Value / attempt.ScoreMax.Value) * 100;
+            }
+            // Use scaled score if available (SCORM 2004)
+            else if (attempt.ScoreScaled.HasValue)
+            {
+                progressPercentage = (decimal)(attempt.ScoreScaled.Value * 100);
+            }
+            // Estimate based on lesson location or suspend data presence
+            else if (!string.IsNullOrEmpty(attempt.LessonLocation) || !string.IsNullOrEmpty(attempt.SuspendData))
+            {
+                // Basic heuristic: if learner has progressed beyond start, assume at least 10% progress
+                progressPercentage = 10m;
+
+                // Try to extract numeric progress from lesson location if it follows common patterns
+                if (!string.IsNullOrEmpty(attempt.LessonLocation))
+                {
+                    var locationProgress = ExtractProgressFromLocation(attempt.LessonLocation);
+                    if (locationProgress > progressPercentage)
+                    {
+                        progressPercentage = locationProgress;
+                    }
+                }
+            }
+
+            // Ensure progress is between 0 and 100
+            return Math.Max(0m, Math.Min(100m, progressPercentage));
+        }
+
+        /// <summary>
+        /// Attempts to extract progress percentage from lesson location string
+        /// </summary>
+        private decimal ExtractProgressFromLocation(string lessonLocation)
+        {
+            if (string.IsNullOrEmpty(lessonLocation))
+                return 0m;
+
+            // Common patterns in lesson locations that might indicate progress
+            // Examples: "lesson_2", "page_5_of_10", "module3", "slide15", etc.
+
+            // Look for percentage patterns
+            var percentMatch = System.Text.RegularExpressions.Regex.Match(lessonLocation, @"(\d+)%");
+            if (percentMatch.Success && decimal.TryParse(percentMatch.Groups[1].Value, out decimal percent))
+            {
+                return Math.Min(percent, 100m);
+            }
+
+            // Look for "X of Y" patterns
+            var ofMatch = System.Text.RegularExpressions.Regex.Match(lessonLocation, @"(\d+)\s*(?:of|/)\s*(\d+)");
+            if (ofMatch.Success &&
+                decimal.TryParse(ofMatch.Groups[1].Value, out decimal current) &&
+                decimal.TryParse(ofMatch.Groups[2].Value, out decimal total) &&
+                total > 0)
+            {
+                return (current / total) * 100m;
+            }
+
+            // Look for simple numeric values and make educated guesses
+            var numberMatch = System.Text.RegularExpressions.Regex.Match(lessonLocation, @"\d+");
+            if (numberMatch.Success && decimal.TryParse(numberMatch.Value, out decimal number))
+            {
+                // Heuristic: if number is between 1-20, assume it's a lesson/page number out of 20
+                if (number >= 1 && number <= 20)
+                {
+                    return (number / 20m) * 100m;
+                }
+                // If number is between 1-100, assume it might be a percentage
+                else if (number >= 1 && number <= 100)
+                {
+                    return number;
+                }
+            }
+
+            return 0m;
+        }
+
         private TimeSpan ParseSCORMTimespan(string timeString)
         {
             try
@@ -562,6 +666,8 @@ namespace ScormHost.Web.Services
         public DateTime? CompletedOn { get; set; }
         public string LessonLocation { get; set; } = string.Empty;
         public string SuspendData { get; set; } = string.Empty;
+        public decimal ProgressPercentage { get; set; } = 0m;
+        public int AttemptNumber { get; set; } = 1;
     }
 
     public class LaunchInfo
