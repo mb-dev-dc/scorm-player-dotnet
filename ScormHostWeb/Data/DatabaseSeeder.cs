@@ -36,6 +36,12 @@ namespace ScormHost.Web.Data
                     Id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
                     Name = "Bob Johnson",
                     Email = "bob.johnson@example.com"
+                },
+                new ScormUser
+                {
+                    Id = Guid.Parse("C09FE532-00D4-4AF4-A50D-B5CE8A6F5894"),
+                    Name = "Test User",
+                    Email = "test.user@example.com"
                 }
             };
 
@@ -67,6 +73,14 @@ namespace ScormHost.Web.Data
                     Version = "1.2",
                     PackagePath = "/courses/database-fundamentals",
                     LaunchScoId = "db_sco_001",
+                },
+                new ScormCourse
+                {
+                    CourseId = Guid.Parse("3A4900BF-A18D-4372-9158-47710F5E1BDC"),
+                    Title = "Development Test Course",
+                    Version = "1.2",
+                    PackagePath = "SHPV3",
+                    LaunchScoId = "index_lms.html",
                 }
             };
 
@@ -106,6 +120,14 @@ namespace ScormHost.Web.Data
                     Identifier = "db_sco_001",
                     Title = "Database Design Principles",
                     LaunchFile = "content/db-design/index.html"
+                },
+                new ScormSco
+                {
+                    ScoId = Guid.Parse("5e5e5e5e-5e5e-5e5e-5e5e-5e5e5e5e5e5e"),
+                    CourseId = courses[3].CourseId,
+                    Identifier = "index_lms.html",
+                    Title = "Development Test Content",
+                    LaunchFile = "index_lms.html"
                 }
             };
 

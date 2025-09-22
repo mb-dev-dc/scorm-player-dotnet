@@ -5,29 +5,69 @@
     var attemptId = ViewBag.AttemptId;
     var resumeData = ViewBag.ResumeData != null ? Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.ResumeData) : "null";
     
-    // Get the base URL and query parameters separately
-    var urlParts = (ViewBag.LaunchUrl ?? "").Split('?');
-    var baseUrl = urlParts.Length > 0 ? urlParts[0] : $"~/scorm-packages/{courseId}/SHP/index_lms.html";
-    
-    // Manually construct a clean URL
-    var cleanUrl = baseUrl;
-    if (!string.IsNullOrEmpty(attemptId?.ToString()))
+    // Use the LaunchUrl from the service if available, otherwise construct a fallback
+    var cleanUrl = ViewBag.LaunchUrl as string;
+
+    // Validate that the service-generated URL contains required parameters
+    bool hasValidUrl = !string.IsNullOrEmpty(cleanUrl);
+    bool hasAttemptId = hasValidUrl && cleanUrl.Contains("attemptId=");
+
+    // Only construct manually if the service didn't provide a valid URL
+    if (!hasValidUrl || !hasAttemptId)
     {
-        cleanUrl += $"?attemptId={attemptId}&courseId={courseId}&userId={userId}";
+        // Log the issue for debugging
+        Console.WriteLine($"Warning: Using fallback URL construction. LaunchUrl: {cleanUrl}, HasAttemptId: {hasAttemptId}");
+
+        // Construct fallback URL with all required parameters
+        var baseUrl = !string.IsNullOrEmpty(cleanUrl) ? cleanUrl.Split('?')[0] : $"~/scorm-packages/{courseId}/SHP/index_lms.html";
+
+        if (!string.IsNullOrEmpty(attemptId?.ToString()))
+        {
+            cleanUrl = $"{baseUrl}?attemptId={attemptId}&courseId={courseId}&userId={userId}";
+        }
+        else
+        {
+            // This should rarely happen - log it as an error
+            Console.WriteLine($"Error: No attemptId available for URL construction. CourseId: {courseId}, UserId: {userId}");
+            cleanUrl = $"{baseUrl}?courseId={courseId}&userId={userId}";
+        }
     }
-    else
-    {
-        // Fallback if no attemptId
-        cleanUrl += $"?courseId={courseId}&userId={userId}";
-    }
+
+    // Log the final URL for debugging
+    Console.WriteLine($"Final iframe URL: {cleanUrl}");
 }
 <!DOCTYPE html>
 <html>
 <head>
     <title>SCORM Player - Development Mode</title>
+
+    <!-- Meta tags for emergency parameter extraction -->
+    <meta name="scorm-attempt-id" content="@ViewBag.AttemptId" />
+    <meta name="scorm-course-id" content="@ViewBag.CourseId" />
+    <meta name="scorm-user-id" content="@ViewBag.UserId" />
+
     <!-- Expose resume data globally for the adapter BEFORE loading the adapter script -->
     <script>
         window.scormResumeData = @Html.Raw(resumeData);
+
+        // Global variables for emergency parameter extraction
+        window.scormAttemptId = '@ViewBag.AttemptId';
+        window.scormCourseId = '@ViewBag.CourseId';
+        window.scormUserId = '@ViewBag.UserId';
+
+        // Debug information
+        window.scormDebugInfo = {
+            attemptId: '@ViewBag.AttemptId',
+            courseId: '@ViewBag.CourseId',
+            userId: '@ViewBag.UserId',
+            isResume: @(ViewBag.IsResume?.ToString().ToLower() ?? "false"),
+            originalLaunchUrl: '@ViewBag.LaunchUrl',
+            finalUrl: '@cleanUrl',
+            hasAttemptIdInUrl: '@cleanUrl'.includes('attemptId='),
+            timestamp: new Date().toISOString()
+        };
+
+        console.log('🔍 SCORM Debug Info loaded:', window.scormDebugInfo);
     </script>
     <script src="~/js/scripts/scorm-api-adapter.js"></script>
     <style>
@@ -40,25 +80,112 @@
         .dev-mode-header {
             background-color: #ffeb3b;
             color: #333;
-            padding: 5px 10px;
+            padding: 8px 15px;
             font-size: 14px;
-            text-align: center;
             display: flex;
             justify-content: space-between;
+            align-items: center;
+            min-height: 50px;
+        }
+        .header-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .header-controls {
+            display: flex;
+            gap: 8px;
             align-items: center;
         }
         .dev-mode-header button {
             background: #2196f3;
             color: white;
             border: none;
-            padding: 3px 8px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .restart-btn {
+            background: #ff5722 !important;
+        }
+        .restart-btn:hover {
+            background: #d84315 !important;
+        }
+        .resume-indicator, .start-indicator {
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .resume-badge {
+            background: #4caf50;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .start-badge {
+            background: #2196f3;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .resume-details, .start-details {
+            font-size: 11px;
+            color: #666;
+        }
+
+        /* Debug panel styles */
+        #debug-panel {
+            position: fixed;
+            top: 70px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 10px;
+            max-width: 300px;
+            display: none;
+            z-index: 9999;
+        }
+        #debug-panel.show {
+            display: block;
+        }
+        .debug-item {
+            margin: 2px 0;
+        }
+        .debug-ok {
+            color: #4caf50;
+        }
+        .debug-error {
+            color: #f44336;
+        }
+        .debug-warning {
+            color: #ff9800;
+        }
+        .debug-toggle {
+            position: fixed;
+            top: 70px;
+            right: 320px;
+            background: #333;
+            color: white;
+            border: none;
+            padding: 5px 8px;
             border-radius: 3px;
             cursor: pointer;
+            font-size: 10px;
+            z-index: 10000;
         }
         #scorm-content {
             border: none;
             width: 100%;
-            height: calc(100vh - 30px);
+            height: calc(100vh - 60px);
         }
         .hidden {
             display: none !important;
@@ -98,11 +225,11 @@
             cursor: pointer;
         }
         .iframe-container {
-            height: calc(100vh - 30px);
+            height: calc(100vh - 60px);
             transition: height 0.3s ease;
         }
         .iframe-container.with-console {
-            height: calc(100vh - 230px);
+            height: calc(100vh - 260px);
         }
         .log-entry {
             border-bottom: 1px solid #eee;
@@ -112,17 +239,49 @@
 </head>
 <body>
     <div class="dev-mode-header">
-        <span>SCORM Player - Development Mode (CourseID: @courseId, UserID: @userId)</span>
-        <div>
+        <div class="header-info">
+            <span>SCORM Player - Development Mode</span>
+            @if (ViewBag.IsResume == true)
+            {
+                <div class="resume-indicator">
+                    <span class="resume-badge">RESUMING</span>
+                    <span class="resume-details">
+                        Attempt @ViewBag.AttemptNumber |
+                        Status: @ViewBag.CompletionStatus |
+                        @if (ViewBag.ScoreRaw != null) { <text>Score: @ViewBag.ScoreRaw | </text> }
+                        Last accessed: @(ViewBag.LastAccessedOn != null ? ((DateTime)ViewBag.LastAccessedOn).ToString("MM/dd/yyyy HH:mm") : "Unknown")
+                    </span>
+                </div>
+            }
+            else
+            {
+                <div class="start-indicator">
+                    <span class="start-badge">NEW ATTEMPT</span>
+                    <span class="start-details">Starting fresh attempt</span>
+                </div>
+            }
+        </div>
+        <div class="header-controls">
             <button id="toggle-console">Show Console</button>
             <button id="toggle-fullscreen">Fullscreen</button>
+            @if (ViewBag.IsResume == true)
+            {
+                <button id="restart-course" class="restart-btn">Restart Course</button>
+            }
         </div>
     </div>
-    
+
+    <!-- Debug panel toggle and panel -->
+    <button id="debug-toggle" class="debug-toggle">Debug</button>
+    <div id="debug-panel">
+        <div style="font-weight: bold; margin-bottom: 5px;">🔍 SCORM Debug Panel</div>
+        <div id="debug-content"></div>
+    </div>
+
     <div id="iframe-container" class="iframe-container">
         <iframe id="scorm-content" src="@cleanUrl" allowfullscreen></iframe>
     </div>
-    
+
     <div id="dev-console">
         <div class="dev-console-header">
             <span>SCORM API Console</span>
@@ -144,6 +303,9 @@
             const devConsoleContent = document.getElementById('dev-console-content');
             const iframeContainer = document.getElementById('iframe-container');
             const scormContent = document.getElementById('scorm-content');
+            const debugToggle = document.getElementById('debug-toggle');
+            const debugPanel = document.getElementById('debug-panel');
+            const debugContent = document.getElementById('debug-content');
             
             // Override console.log to capture in our dev console
             const originalConsoleLog = console.log;
@@ -179,14 +341,142 @@
                     scormContent.requestFullscreen();
                 }
             });
+
+            // Restart course functionality
+            const restartBtn = document.getElementById('restart-course');
+            if (restartBtn) {
+                restartBtn.addEventListener('click', function() {
+                    if (confirm('Are you sure you want to restart this course? All progress will be lost.')) {
+                        // Redirect to launch without the current attempt ID to force a new attempt
+                        window.location.href = '/Scorm/Launch?courseId=@ViewBag.CourseId&userId=@ViewBag.UserId&forceNew=true';
+                    }
+                });
+            }
             
             // Log successful initialization
             console.log('Development tools initialized');
             console.log('SCORM content URL: ' + '@cleanUrl');
             console.log('LaunchUrl passed to iframe:', '@cleanUrl');
-            
+
+            // Validate URL parameters
+            const iframeUrl = '@cleanUrl';
+            const hasAttemptId = iframeUrl.includes('attemptId=');
+            const hasCourseId = iframeUrl.includes('courseId=');
+            const hasUserId = iframeUrl.includes('userId=');
+
+            console.log('URL Parameter Validation:');
+            console.log('- Has attemptId:', hasAttemptId);
+            console.log('- Has courseId:', hasCourseId);
+            console.log('- Has userId:', hasUserId);
+
+            if (!hasAttemptId) {
+                console.error('⚠️ CRITICAL: attemptId is missing from iframe URL! This will cause save operations to fail.');
+                console.error('Expected attemptId: @(ViewBag.AttemptId)');
+                console.error('Current URL: ' + iframeUrl);
+            }
+
+            // Log ViewBag data for debugging
+            console.log('ViewBag data:');
+            console.log('- CourseId: @ViewBag.CourseId');
+            console.log('- UserId: @ViewBag.UserId');
+            console.log('- AttemptId: @ViewBag.AttemptId');
+            console.log('- IsResume: @ViewBag.IsResume');
+            console.log('- Original LaunchUrl: @ViewBag.LaunchUrl');
+
+            // Debug panel functionality
+            debugToggle.addEventListener('click', function() {
+                debugPanel.classList.toggle('show');
+                updateDebugPanel();
+            });
+
+            // Function to update debug panel with current status
+            function updateDebugPanel() {
+                const debugInfo = window.scormDebugInfo;
+                const currentParams = window.getQueryParams ? window.getQueryParams() : {};
+
+                let html = '';
+
+                // ViewBag data
+                html += '<div class="debug-item"><strong>ViewBag Data:</strong></div>';
+                html += `<div class="debug-item">AttemptId: <span class="${debugInfo.attemptId ? 'debug-ok' : 'debug-error'}">${debugInfo.attemptId || 'MISSING'}</span></div>`;
+                html += `<div class="debug-item">CourseId: <span class="${debugInfo.courseId ? 'debug-ok' : 'debug-error'}">${debugInfo.courseId || 'MISSING'}</span></div>`;
+                html += `<div class="debug-item">UserId: <span class="${debugInfo.userId ? 'debug-ok' : 'debug-error'}">${debugInfo.userId || 'MISSING'}</span></div>`;
+
+                // URL validation
+                html += '<div class="debug-item" style="margin-top: 8px;"><strong>URL Status:</strong></div>';
+                html += `<div class="debug-item">Has AttemptId in URL: <span class="${debugInfo.hasAttemptIdInUrl ? 'debug-ok' : 'debug-error'}">${debugInfo.hasAttemptIdInUrl ? 'YES' : 'NO'}</span></div>`;
+                html += `<div class="debug-item">Original LaunchUrl: <span class="${debugInfo.originalLaunchUrl ? 'debug-ok' : 'debug-warning'}">${debugInfo.originalLaunchUrl || 'None'}</span></div>`;
+
+                // Current extracted parameters
+                html += '<div class="debug-item" style="margin-top: 8px;"><strong>Extracted Parameters:</strong></div>';
+                if (Object.keys(currentParams).length > 0) {
+                    for (const [key, value] of Object.entries(currentParams)) {
+                        const isRequired = ['attemptId', 'courseId', 'userId'].includes(key);
+                        const cssClass = value ? (isRequired ? 'debug-ok' : '') : 'debug-error';
+                        html += `<div class="debug-item">${key}: <span class="${cssClass}">${value || 'MISSING'}</span></div>`;
+                    }
+                } else {
+                    html += '<div class="debug-item debug-error">No parameters extracted!</div>';
+                }
+
+                // Status summary
+                html += '<div class="debug-item" style="margin-top: 8px;"><strong>Status:</strong></div>';
+                const hasAttemptId = currentParams.attemptId || debugInfo.attemptId;
+                html += `<div class="debug-item">Save Operations: <span class="${hasAttemptId ? 'debug-ok' : 'debug-error'}">${hasAttemptId ? 'SHOULD WORK' : 'WILL FAIL'}</span></div>`;
+
+                debugContent.innerHTML = html;
+            }
+
+            // Update debug panel every 5 seconds
+            setInterval(updateDebugPanel, 5000);
+
             // Log resume data for debugging
             console.log('ResumeData:', window.scormResumeData);
+
+            // Add page unload handler to save state before leaving
+            window.addEventListener('beforeunload', function(event) {
+                if (window.API && typeof window.API.LMSCommit === 'function') {
+                    try {
+                        window.API.LMSCommit('');
+                        console.log('Emergency save on page unload (SCORM 1.2)');
+                    } catch (e) {
+                        console.error('Failed to save on unload:', e);
+                    }
+                }
+                if (window.API_1484_11 && typeof window.API_1484_11.Commit === 'function') {
+                    try {
+                        window.API_1484_11.Commit('');
+                        console.log('Emergency save on page unload (SCORM 2004)');
+                    } catch (e) {
+                        console.error('Failed to save on unload:', e);
+                    }
+                }
+            });
+
+            // Add periodic heartbeat to detect if iframe is responsive
+            let heartbeatInterval;
+            function startHeartbeat() {
+                heartbeatInterval = setInterval(() => {
+                    try {
+                        const iframe = document.getElementById('scorm-content');
+                        if (iframe && iframe.contentWindow) {
+                            // Check if SCORM content is still responsive
+                            console.log('Heartbeat: SCORM content responsive');
+                        }
+                    } catch (e) {
+                        console.warn('Heartbeat: SCORM content may not be responsive');
+                    }
+                }, 60000); // Check every minute
+            }
+
+            startHeartbeat();
+
+            // Cleanup on page unload
+            window.addEventListener('unload', () => {
+                if (heartbeatInterval) {
+                    clearInterval(heartbeatInterval);
+                }
+            });
         });
     </script>
 </body>

@@ -15,7 +15,7 @@ namespace ScormHost.Web.Controllers
             _runtimeService = runtimeService;
         }
 
-        public async Task<IActionResult> Launch(Guid? courseId = null, Guid? userId = null)
+        public async Task<IActionResult> Launch(Guid? courseId = null, Guid? userId = null, bool forceNew = false)
         {
             if (!courseId.HasValue)
             {
@@ -45,7 +45,7 @@ namespace ScormHost.Web.Controllers
             try
             {
                 // Launch the course through the runtime service
-                var launchInfo = await _runtimeService.LaunchCourseAsync(userId.Value, courseId.Value);
+                var launchInfo = await _runtimeService.LaunchCourseAsync(userId.Value, courseId.Value, forceNew);
                 if (launchInfo == null)
                 {
                     // For development, create a minimal launchInfo object if the real one is null
@@ -65,6 +65,15 @@ namespace ScormHost.Web.Controllers
                 ViewBag.AttemptId = launchInfo.AttemptId;  // Explicitly pass the attemptId
                 ViewBag.LaunchUrl = System.Web.HttpUtility.HtmlDecode(launchInfo.LaunchUrl);
                 ViewBag.ResumeData = launchInfo.ResumeData; // Pass resume data to the view
+                ViewBag.CourseTitle = launchInfo.CourseTitle;
+
+                // Add resume status information for UI
+                var resumeData = launchInfo.ResumeData as dynamic;
+                ViewBag.IsResume = resumeData?.IsResume ?? false;
+                ViewBag.CompletionStatus = resumeData?.CompletionStatus ?? "not attempted";
+                ViewBag.LastAccessedOn = resumeData?.LastAccessedOn;
+                ViewBag.AttemptNumber = resumeData?.AttemptNumber ?? 1;
+                ViewBag.ScoreRaw = resumeData?.ScoreRaw;
 
                 // Log the LaunchUrl for debugging
                 Console.WriteLine($"LaunchUrl: {ViewBag.LaunchUrl}");

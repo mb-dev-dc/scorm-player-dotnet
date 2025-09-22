@@ -77,6 +77,29 @@ namespace ScormHost.Web.Controllers.Api
         }
 
 
+        [HttpGet("attempts/{attemptId}/progress")]
+        public async Task<IActionResult> GetProgress(Guid attemptId)
+        {
+            try
+            {
+                // For getting progress, we need to extract courseId and userId from the attempt
+                // This is a simplified approach - in production you might want to validate user access
+                var attempt = await _runtimeService.GetAttemptAsync(attemptId);
+                if (attempt == null)
+                {
+                    return NotFound(new { error = "Attempt not found" });
+                }
+
+                var progress = await _runtimeService.GetProgressAsync(attempt.UserId, attempt.CourseId);
+                return Ok(progress);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting progress for attempt {AttemptId}", attemptId);
+                return StatusCode(500, new { error = "Failed to get progress" });
+            }
+        }
+
         [HttpPost("attempts/{attemptId}/finish")]
         public async Task<IActionResult> Finish(Guid attemptId, [FromBody] JObject payload = null)
         {
@@ -106,6 +129,57 @@ namespace ScormHost.Web.Controllers.Api
             {
                 _logger.LogError(ex, "Error finishing attempt {AttemptId}", attemptId);
                 return StatusCode(500, new { error = "Failed to finish SCORM attempt" });
+            }
+        }
+
+        [HttpPost("attempts/{attemptId}/resume")]
+        public async Task<IActionResult> Resume(Guid attemptId)
+        {
+            try
+            {
+                if (attemptId == Guid.Empty)
+                {
+                    _logger.LogWarning("Invalid attempt ID provided for resume.");
+                    return BadRequest(new { error = "Invalid attempt ID" });
+                }
+
+                var attempt = await _runtimeService.GetAttemptAsync(attemptId);
+                if (attempt == null)
+                {
+                    _logger.LogWarning("Attempt {AttemptId} not found for resume", attemptId);
+                    return NotFound(new { error = "Attempt not found" });
+                }
+
+                if (attempt.CompletedOn.HasValue)
+                {
+                    _logger.LogWarning("Cannot resume completed attempt {AttemptId}", attemptId);
+                    return BadRequest(new { error = "Cannot resume a completed attempt" });
+                }
+
+                // Get the launch info which includes resume data
+                var launchInfo = await _runtimeService.LaunchCourseAsync(attempt.UserId, attempt.CourseId);
+                if (launchInfo == null)
+                {
+                    _logger.LogError("Failed to generate launch info for resume of attempt {AttemptId}", attemptId);
+                    return StatusCode(500, new { error = "Failed to resume attempt" });
+                }
+
+                _logger.LogDebug("Resuming attempt {AttemptId} for user {UserId} on course {CourseId}",
+                    attemptId, attempt.UserId, attempt.CourseId);
+
+                return Ok(new
+                {
+                    attemptId = launchInfo.AttemptId,
+                    launchUrl = launchInfo.LaunchUrl,
+                    resumeData = launchInfo.ResumeData,
+                    courseTitle = launchInfo.CourseTitle,
+                    status = "resumed"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resuming attempt {AttemptId}", attemptId);
+                return StatusCode(500, new { error = "Failed to resume SCORM attempt" });
             }
         }
 

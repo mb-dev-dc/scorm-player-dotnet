@@ -14,11 +14,22 @@ namespace ScormHost.Web.Services
         private readonly bool _isTestEnvironment;
         private readonly ILogger<ScormRuntimeService> _logger;
 
-        public ScormRuntimeService(ScormDbContext dbContext, ILogger<ScormRuntimeService> logger, bool isTestEnvironment = false)
+        public ScormRuntimeService(ScormDbContext dbContext, ILogger<ScormRuntimeService> logger, bool isTestEnvironment = true)
         {
             _dbContext = dbContext;
             _logger = logger;
             _isTestEnvironment = isTestEnvironment;
+        }
+
+        /// <summary>
+        /// Gets a specific attempt by ID
+        /// </summary>
+        public async Task<ScormAttempt> GetAttemptAsync(Guid attemptId)
+        {
+            return await _dbContext.Attempts
+                .Include(a => a.Course)
+                .Include(a => a.User)
+                .FirstOrDefaultAsync(a => a.AttemptId == attemptId);
         }
 
         /// <summary>
@@ -73,7 +84,7 @@ namespace ScormHost.Web.Services
         /// <summary>
         /// Launches or resumes a course for a user
         /// </summary>
-        public async Task<LaunchInfo> LaunchCourseAsync(Guid userId, Guid courseId)
+        public async Task<LaunchInfo> LaunchCourseAsync(Guid userId, Guid courseId, bool forceNewAttempt = false)
         {
             // Check that both user and course exist
             var course = await _dbContext.Courses.FindAsync(courseId);
@@ -85,10 +96,15 @@ namespace ScormHost.Web.Services
             }
 
             // Find existing attempt or create a new one
-            var attempt = await _dbContext.Attempts
-                .Where(a => a.UserId == userId && a.CourseId == courseId && a.CompletedOn == null)
-                .OrderByDescending(a => a.StartedOn)
-                .FirstOrDefaultAsync();
+            ScormAttempt attempt = null;
+
+            if (!forceNewAttempt)
+            {
+                attempt = await _dbContext.Attempts
+                    .Where(a => a.UserId == userId && a.CourseId == courseId && a.CompletedOn == null)
+                    .OrderByDescending(a => a.StartedOn)
+                    .FirstOrDefaultAsync();
+            }
 
             // Get attempt number
             int attemptNumber = 1;
@@ -179,12 +195,21 @@ namespace ScormHost.Web.Services
             // Include resume data if available
             var resumeData = new
             {
-                LessonLocation = attempt.LessonLocation,
-                SuspendData = attempt.SuspendData,
-                CompletionStatus = attempt.CompletionStatus,
-                SuccessStatus = attempt.SuccessStatus,
+                LessonLocation = attempt.LessonLocation ?? "",
+                SuspendData = attempt.SuspendData ?? "",
+                CompletionStatus = attempt.CompletionStatus ?? "not attempted",
+                SuccessStatus = attempt.SuccessStatus ?? "unknown",
                 ScoreRaw = attempt.ScoreRaw,
-                TotalTime = attempt.TotalTime
+                ScoreMax = attempt.ScoreMax,
+                ScoreMin = attempt.ScoreMin,
+                ScoreScaled = attempt.ScoreScaled,
+                TotalTime = attempt.TotalTime,
+                AttemptNumber = attempt.AttemptNumber,
+                StartedOn = attempt.StartedOn,
+                LastAccessedOn = attempt.LastAccessedOn,
+                IsResume = !string.IsNullOrEmpty(attempt.LessonLocation) ||
+                          !string.IsNullOrEmpty(attempt.SuspendData) ||
+                          attempt.CompletionStatus != "not attempted"
             };
 
             return new LaunchInfo
