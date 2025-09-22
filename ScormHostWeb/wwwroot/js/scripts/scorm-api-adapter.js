@@ -1178,13 +1178,10 @@ function updateProgressDisplay() {
       }
     }
 
-      const spans = document.querySelectorAll('.progress-text');
-      spans.forEach(span => {
-          span.innerHTML = progressPercentage + ' % complete';
-      });
-
-      console.log("---- update progress display -----");
-      console.log(progressPercentage);
+    const spans = document.querySelectorAll('.progress-text');
+    spans.forEach(span => {
+          span.innerHTML = progressPercentage + '% complete';
+    });
 
     console.log(`📊 Progress updated: ${progressPercentage}%`);
     return progressPercentage;

@@ -1,9 +1,6 @@
 using ScormHost.Web.Data;
 using ScormHost.Web.Data.Models;
-using System;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using System.Linq;
 using Newtonsoft.Json.Linq;
 
 namespace ScormHost.Web.Services
@@ -98,7 +95,7 @@ namespace ScormHost.Web.Services
             }
 
             // Find existing attempt or create a new one
-            ScormAttempt attempt = null;
+            ScormAttempt? attempt = null;
 
             if (!forceNewAttempt)
             {
@@ -186,7 +183,7 @@ namespace ScormHost.Web.Services
                 }
             }
 
-            string launchUrl = baseUrl + Uri.EscapeDataString(launchFile);
+            var launchUrl = baseUrl + Uri.EscapeDataString(launchFile);
             // Use a format that's less likely to be HTML-encoded
             launchUrl += "?attemptId=" + attempt.AttemptId.ToString() 
                       + "&courseId=" + courseId.ToString()
@@ -480,7 +477,7 @@ namespace ScormHost.Web.Services
             }
 
             // Update session time and add to total time
-            string sessionTime = isScorm2004 ? coreData["session_time"]?.ToString() : coreData["session_time"]?.ToString();
+            var sessionTime = isScorm2004 ? coreData["session_time"]?.ToString() : coreData["session_time"]?.ToString();
 
             if (!string.IsNullOrEmpty(sessionTime))
             {
@@ -650,6 +647,7 @@ namespace ScormHost.Web.Services
             {
                 // If parsing fails, return zero timespan
             }
+
             return TimeSpan.Zero;
         }
     }

@@ -1,0 +1,213 @@
+﻿body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: Arial, sans-serif;
+}
+
+.dev-mode-header {
+    background-color: #ffeb3b;
+    color: #333;
+    padding: 8px 15px;
+    font-size: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 60px;
+}
+
+.header-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.header-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.dev-mode-header button {
+    background: #2196f3;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.restart-btn {
+    background: #ff5722 !important;
+}
+
+    .restart-btn:hover {
+        background: #d84315 !important;
+    }
+
+.resume-indicator, .start-indicator {
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.resume-badge {
+    background: #4caf50;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.start-badge {
+    background: #2196f3;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.resume-details, .start-details {
+    font-size: 13px;
+    color: #666;
+}
+
+/* Progress bar styles */
+.progress-container {
+    width: 200px;
+    height: 10px;
+    background-color: #e0e0e0;
+    border-radius: 6px;
+    margin: 2px 0;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #4caf50;
+    border-radius: 6px;
+    transition: width 0.6s ease;
+}
+
+.progress-text {
+    font-size: 12px;
+    color: #666;
+    margin-left: 4px;
+}
+
+/* Debug panel styles */
+#debug-panel {
+    position: fixed;
+    top: 70px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 10px;
+    max-width: 300px;
+    display: none;
+    z-index: 9999;
+}
+
+    #debug-panel.show {
+        display: block;
+    }
+
+.debug-item {
+    margin: 2px 0;
+}
+
+.debug-ok {
+    color: #4caf50;
+}
+
+.debug-error {
+    color: #f44336;
+}
+
+.debug-warning {
+    color: #ff9800;
+}
+
+.debug-toggle {
+    position: fixed;
+    top: 70px;
+    right: 320px;
+    background: #333;
+    color: white;
+    border: none;
+    padding: 5px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    z-index: 10000;
+}
+
+#scorm-content {
+    border: none;
+    width: 100%;
+    height: calc(100vh - 60px);
+}
+
+.hidden {
+    display: none !important;
+}
+
+#dev-console {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 200px;
+    background: #f5f5f5;
+    border-top: 1px solid #ccc;
+    overflow: auto;
+    font-family: monospace;
+    font-size: 12px;
+    padding: 10px;
+    display: none;
+}
+
+    #dev-console.visible {
+        display: block;
+    }
+
+#dev-console-content {
+    margin: 0;
+    padding: 0;
+}
+
+.dev-console-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+    .dev-console-header button {
+        background: #f44336;
+        color: white;
+        border: none;
+        padding: 3px 8px;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+
+.iframe-container {
+    height: calc(100vh - 60px);
+    transition: height 0.3s ease;
+}
+
+    .iframe-container.with-console {
+        height: calc(100vh - 260px);
+    }
+
+.log-entry {
+    border-bottom: 1px solid #eee;
+    padding: 2px 0;
+}
