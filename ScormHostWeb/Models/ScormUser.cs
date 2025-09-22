@@ -1,4 +1,4 @@
-namespace ScormHost.Web.Data.Models
+namespace ScormHostWeb.Models
 {
     public class ScormUser
     {
@@ -10,7 +10,7 @@ namespace ScormHost.Web.Data.Models
         public Guid Id { get; set; }
         public string Email { get; set; }
         public string Name { get; set; }
-        
+
         // Navigation property
         public ICollection<ScormAttempt> Attempts { get; set; }
     }

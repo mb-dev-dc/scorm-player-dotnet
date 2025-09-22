@@ -1,5 +1,5 @@
 using ScormHost.Web.Data;
-using ScormHost.Web.Data.Models;
+using ScormHostWeb.Models;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Linq;
 
@@ -650,31 +650,5 @@ namespace ScormHost.Web.Services
 
             return TimeSpan.Zero;
         }
-    }
-
-    public class CourseProgressInfo
-    {
-        public Guid UserId { get; set; }
-        public Guid CourseId { get; set; }
-        public Guid? AttemptId { get; set; }
-        public string Status { get; set; } = string.Empty;
-        public string CompletionStatus { get; set; } = string.Empty;
-        public decimal? Score { get; set; }
-        public DateTime? StartedOn { get; set; }
-        public DateTime? CompletedOn { get; set; }
-        public string LessonLocation { get; set; } = string.Empty;
-        public string SuspendData { get; set; } = string.Empty;
-        public decimal ProgressPercentage { get; set; } = 0m;
-        public int AttemptNumber { get; set; } = 1;
-    }
-
-    public class LaunchInfo
-    {
-        public Guid AttemptId { get; set; }
-        public Guid CourseId { get; set; }
-        public Guid UserId { get; set; }
-        public string LaunchUrl { get; set; } = string.Empty;
-        public string CourseTitle { get; set; } = string.Empty;
-        public object ResumeData { get; set; } = new();
     }
 }

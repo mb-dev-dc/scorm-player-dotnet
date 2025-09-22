@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using ScormHost.Web.Data.Models;
+using ScormHostWeb.Models;
 
 namespace ScormHost.Web.Data
 {

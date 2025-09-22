@@ -1,4 +1,4 @@
-using ScormHost.Web.Data.Models;
+using ScormHostWeb.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace ScormHost.Web.Data

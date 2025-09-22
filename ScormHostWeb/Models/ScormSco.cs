@@ -1,6 +1,4 @@
-﻿using ScormHost.Web.Data.Models;
-
-namespace ScormHost.Web.Data.Models
+namespace ScormHostWeb.Models
 {
     public class ScormSco
     {
@@ -11,5 +9,4 @@ namespace ScormHost.Web.Data.Models
         public string LaunchFile { get; set; } // e.g., "index.html"
         public ScormCourse Course { get; set; }
     }
-
 }

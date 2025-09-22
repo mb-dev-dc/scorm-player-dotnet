@@ -1,11 +1,10 @@
-using Xunit;
 using Newtonsoft.Json.Linq;
 using ScormHost.Web.Services;
-using ScormHost.Web.Data.Models;
 using ScormHost.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
+using ScormHostWeb.Models;
 
 namespace ScormHostWeb.Tests
 {
