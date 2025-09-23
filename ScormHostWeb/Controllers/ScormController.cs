@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using ScormHost.Web.Services;
-using System;
-using System.Threading.Tasks;
+using ScormHostWeb.Models;
+using System.Diagnostics;
 
 namespace ScormHost.Web.Controllers
 {
@@ -9,92 +10,95 @@ namespace ScormHost.Web.Controllers
     public class ScormController : Controller
     {
         private readonly ScormRuntimeService _runtimeService;
+        private readonly ScormPackageService _scormPackageService;
+        private readonly AppSettings _appSettings;
 
-        public ScormController(ScormRuntimeService runtimeService)
+        public ScormController(ScormRuntimeService runtimeService, ScormPackageService scormPackageService,  IOptions<AppSettings> appSettings)
         {
             _runtimeService = runtimeService;
+            _scormPackageService = scormPackageService;
+            _appSettings = appSettings.Value;
         }
 
-        public async Task<IActionResult> Launch(Guid? courseId = null, Guid? userId = null, bool forceNew = false)
+        
+        public async Task<IActionResult> LaunchTest(bool forceNew = true)
+        {
+            Guid userId = Guid.Parse(_appSettings.TestData.UserId);
+            Guid courseId = Guid.Parse(_appSettings.TestData.CourseId);
+
+            var launchInfo = await _runtimeService.LaunchCourseAsync(userId, courseId, false);
+            if(launchInfo == null)
+            {
+                ViewBag.CourseId = courseId;
+                ViewBag.UserId = userId;
+                ViewBag.LaunchUrl = $"{_appSettings.TestData.CoursePath}?userId={userId}&courseId={courseId}";
+                return View("Launch");
+            }
+
+            // Pass the launch information to the view
+            ViewBag.CourseId = courseId;
+            ViewBag.UserId = userId;
+            ViewBag.AttemptId = launchInfo.AttemptId;  // Explicitly pass the attemptId
+            ViewBag.LaunchUrl = $"{_appSettings.TestData.CoursePath}?userId={userId}&courseId={courseId}";
+            ViewBag.ResumeData = launchInfo.ResumeData; // Pass resume data to the view
+            ViewBag.CourseTitle = launchInfo.CourseTitle;
+
+            // Add resume status information for UI
+            var resumeData = launchInfo.ResumeData as dynamic;
+            ViewBag.IsResume = resumeData?.IsResume ?? false;
+            ViewBag.CompletionStatus = resumeData?.CompletionStatus ?? "not attempted";
+            ViewBag.LastAccessedOn = resumeData?.LastAccessedOn;
+            ViewBag.AttemptNumber = resumeData?.AttemptNumber ?? 1;
+            ViewBag.ScoreRaw = resumeData?.ScoreRaw;
+
+            return View("Launch");
+
+        }
+
+        public async Task<IActionResult> Launch(Guid? courseId, bool forceNew = true)
         {
             if (!courseId.HasValue)
             {
-                // Use a default course ID for development if not provided
-                //courseId = Guid.Parse("831663EE-325E-47E2-B7F9-4B23A8696798"); // Default course ID for development
-                //courseId = Guid.Parse("7F2CFB1E-2243-493D-969D-5F4E3A767A0F"); // Default course ID for development
-                courseId = Guid.Parse("3A4900BF-A18D-4372-9158-47710F5E1BDC"); // Default course ID for development
+                throw new ArgumentException("Course ID is required to launch a course.");
             }
 
-            // For development, always use a default user ID if not provided
-            if (!userId.HasValue)
+            Guid userId = Guid.Empty;
+            if (User.Identity?.IsAuthenticated == true)
             {
-                // Default development user ID
-                userId = Guid.Parse("C09FE532-00D4-4AF4-A50D-B5CE8A6F5894"); // Use a new GUID as test user ID
-                
-                // If authentication is enabled, try to get from claims
-                if (User.Identity?.IsAuthenticated == true)
+                var userIdClaim = User.FindFirst("sub")?.Value;
+                if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out var parsedUserId))
                 {
-                    var userIdClaim = User.FindFirst("sub")?.Value;
-                    if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out var parsedUserId))
-                    {
-                        userId = parsedUserId;
-                    }
+                    userId = parsedUserId;
                 }
             }
-
-            try
+            else
             {
-                // Launch the course through the runtime service
-                var launchInfo = await _runtimeService.LaunchCourseAsync(userId.Value, courseId.Value, forceNew);
-                if (launchInfo == null)
-                {
-                    // For development, create a minimal launchInfo object if the real one is null
-                    ViewBag.CourseId = courseId.Value;
-                    ViewBag.UserId = userId.Value;
-                    ViewBag.LaunchUrl = $"/scorm-packages/{courseId.Value}/SHP/index_lms.html?userId={userId.Value}&courseId={courseId.Value}";
-                    
-                    // Log the LaunchUrl for debugging
-                    Console.WriteLine($"LaunchUrl: {ViewBag.LaunchUrl}");
-                    
-                    return View();
-                }
-
-                // Pass the launch information to the view
-                ViewBag.CourseId = courseId.Value;
-                ViewBag.UserId = userId.Value;
-                ViewBag.AttemptId = launchInfo.AttemptId;  // Explicitly pass the attemptId
-                ViewBag.LaunchUrl = System.Web.HttpUtility.HtmlDecode(launchInfo.LaunchUrl);
-                ViewBag.ResumeData = launchInfo.ResumeData; // Pass resume data to the view
-                ViewBag.CourseTitle = launchInfo.CourseTitle;
-
-                // Add resume status information for UI
-                var resumeData = launchInfo.ResumeData as dynamic;
-                ViewBag.IsResume = resumeData?.IsResume ?? false;
-                ViewBag.CompletionStatus = resumeData?.CompletionStatus ?? "not attempted";
-                ViewBag.LastAccessedOn = resumeData?.LastAccessedOn;
-                ViewBag.AttemptNumber = resumeData?.AttemptNumber ?? 1;
-                ViewBag.ScoreRaw = resumeData?.ScoreRaw;
-
-                // Log the LaunchUrl for debugging
-                Console.WriteLine($"LaunchUrl: {ViewBag.LaunchUrl}");
-
-                return View();
+                return RedirectToAction("Index", "Home"); // or redirect to sign in page
             }
-            catch (Exception ex)
-            {
-                // Log error but continue with default values for development
-                Console.WriteLine($"Error in Launch: {ex.Message}");
-                
-                // Set fallback values for development
-                ViewBag.CourseId = courseId.Value;
-                ViewBag.UserId = userId.Value;
-                ViewBag.LaunchUrl = $"/scorm-packages/{courseId.Value}/SHP/index_lms.html?userId={userId.Value}&courseId={courseId.Value}";
-                
-                // Log the LaunchUrl for debugging
-                Console.WriteLine($"LaunchUrl: {ViewBag.LaunchUrl}");
-                
-                return View();
-            }
+
+            var launchInfo = await _runtimeService.LaunchCourseAsync(userId, courseId.Value, forceNew);
+
+            // Pass the launch information to the view
+            ViewBag.CourseId = courseId.Value;
+            ViewBag.UserId = userId;
+            ViewBag.AttemptId = launchInfo.AttemptId;  // Explicitly pass the attemptId
+            ViewBag.LaunchUrl = System.Web.HttpUtility.HtmlDecode(launchInfo.LaunchUrl);
+            ViewBag.ResumeData = launchInfo.ResumeData; // Pass resume data to the view
+            ViewBag.CourseTitle = launchInfo.CourseTitle;
+
+            // Add resume status information for UI
+            var resumeData = launchInfo.ResumeData as dynamic;
+            ViewBag.IsResume = resumeData?.IsResume ?? false;
+            ViewBag.CompletionStatus = resumeData?.CompletionStatus ?? "not attempted";
+            ViewBag.LastAccessedOn = resumeData?.LastAccessedOn;
+            ViewBag.AttemptNumber = resumeData?.AttemptNumber ?? 1;
+            ViewBag.ScoreRaw = resumeData?.ScoreRaw;
+
+            // Log the LaunchUrl for debugging
+            Console.WriteLine($"LaunchUrl: {ViewBag.LaunchUrl}");
+
+            return View();
+
         }
     }
 }

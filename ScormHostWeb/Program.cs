@@ -4,23 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ScormHost.Web.Data;
 using System.Text; // Added for Encoding
-using Newtonsoft.Json.Linq;
+using ScormHostWeb.Models;
 
 namespace ScormHostWeb;
 
-// Add LaunchRequest class for the API endpoint
-public class LaunchRequest
-{
-    public Guid UserId { get; set; }
-    public Guid CourseId { get; set; }
-}
-
-// Add CommitRequest class for the commit API endpoint
-public class CommitRequest
-{
-    public Guid AttemptId { get; set; }
-    public JObject CmiData { get; set; }
-}
 
 public class Program
 {
@@ -107,6 +94,9 @@ public class Program
             });
         });
         
+        // Configure strongly typed settings
+        builder.Services.Configure<AppSettings>(builder.Configuration);
+
         // Register application services (dependency injection for our custom services)
         builder.Services.AddScoped<ScormRuntimeService>(); // Handles SCORM runtime interactions
         builder.Services.AddScoped<ScormPackageService>(); // Handles course package management
@@ -123,10 +113,14 @@ public class Program
         var app = builder.Build();
 
         // Initialize database with seed data
-        using (var scope = app.Services.CreateScope())
+        if (useInMemory)
         {
-            var context = scope.ServiceProvider.GetRequiredService<ScormDbContext>();
-            DatabaseSeeder.SeedAsync(context);
+            using (var scope = app.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<ScormDbContext>();
+                var appSettings = builder.Configuration.Get<AppSettings>();
+                DatabaseSeeder.SeedAsync(context, appSettings);
+            }
         }
 
         // Configure Middleware pipeline

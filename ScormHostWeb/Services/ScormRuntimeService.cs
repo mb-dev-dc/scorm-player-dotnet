@@ -2,20 +2,19 @@ using ScormHost.Web.Data;
 using ScormHostWeb.Models;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Linq;
+using ScormHostWeb.Helpers;
 
 namespace ScormHost.Web.Services
 {
     public class ScormRuntimeService
     {
         private readonly ScormDbContext _dbContext;
-        private readonly bool _isTestEnvironment;
         private readonly ILogger<ScormRuntimeService> _logger;
 
-        public ScormRuntimeService(ScormDbContext dbContext, ILogger<ScormRuntimeService> logger, bool isTestEnvironment = true)
+        public ScormRuntimeService(ScormDbContext dbContext, ILogger<ScormRuntimeService> logger)
         {
             _dbContext = dbContext;
             _logger = logger;
-            _isTestEnvironment = isTestEnvironment;
         }
 
         /// <summary>
@@ -85,6 +84,9 @@ namespace ScormHost.Web.Services
         /// </summary>
         public async Task<LaunchInfo> LaunchCourseAsync(Guid userId, Guid courseId, bool forceNewAttempt = false)
         {
+
+            var courses = await _dbContext.Courses.ToListAsync();
+
             // Check that both user and course exist
             var course = await _dbContext.Courses.FindAsync(courseId);
             var user = await _dbContext.Users.FindAsync(userId);
@@ -226,28 +228,7 @@ namespace ScormHost.Web.Services
                 ResumeData = resumeData
             };
         }
-
-        /// <summary>
-        /// Transforms flat SCORM key-value pairs (e.g., "cmi.core.lesson_status") into a nested JObject structure.
-        /// </summary>
-        private JObject TransformFlatScormData(JObject flatData)
-        {
-            var nested = new JObject();
-            foreach (var prop in flatData.Properties())
-            {
-                var keys = prop.Name.Split('.');
-                JObject current = nested;
-                for (int i = 0; i < keys.Length - 1; i++)
-                {
-                    if (current[keys[i]] == null)
-                        current[keys[i]] = new JObject();
-                    current = (JObject)current[keys[i]];
-                }
-                current[keys[^1]] = prop.Value;
-            }
-            return nested;
-        }
-
+        
         /// <summary>
         /// Commits the current state of a SCORM attempt
         /// </summary>
@@ -259,7 +240,8 @@ namespace ScormHost.Web.Services
                 cmiData = TransformFlatScormData(cmiData);
             }
 
-            if (!_isTestEnvironment)
+            // in memory db does not support transaction
+            if (!DebugHelper.IsDebug)
             {
                 using var transaction = await _dbContext.Database.BeginTransactionAsync();
                 try
@@ -297,28 +279,7 @@ namespace ScormHost.Web.Services
             }
             else
             {
-                // Skip transaction handling in test environment
-                var attempt = await _dbContext.Attempts.FindAsync(attemptId);
-                if (attempt == null)
-                {
-                    return false;
-                }
-
-                // Update the LastAccessedOn timestamp
-                attempt.LastAccessedOn = DateTime.UtcNow;
-
-                // Store the full CMI data as JSON
-                attempt.AttemptStateJson = cmiData.ToString();
-
-                // Log the received data
-                _logger.LogDebug("Received data for commit: {Data}", cmiData.ToString());
-
-                // Update specific tracked fields from the CMI data
-                UpdateAttemptFromCmiData(attempt, cmiData);
-
-                // Save changes to the database
-                await _dbContext.SaveChangesAsync();
-                return true;
+                return await CommitAttemptInternalAsync(attemptId, cmiData);
             }
         }
 
@@ -354,10 +315,59 @@ namespace ScormHost.Web.Services
             }
         }
 
+        #region private
+
+        /// <summary>
+        /// Transforms flat SCORM key-value pairs (e.g., "cmi.core.lesson_status") into a nested JObject structure.
+        /// </summary>
+        private JObject TransformFlatScormData(JObject flatData)
+        {
+            var nested = new JObject();
+            foreach (var prop in flatData.Properties())
+            {
+                var keys = prop.Name.Split('.');
+                JObject current = nested;
+                for (int i = 0; i < keys.Length - 1; i++)
+                {
+                    if (current[keys[i]] == null)
+                        current[keys[i]] = new JObject();
+                    current = (JObject)current[keys[i]];
+                }
+                current[keys[^1]] = prop.Value;
+            }
+            return nested;
+        }
+
+        private async Task<bool> CommitAttemptInternalAsync(Guid attemptId, JObject cmiData)
+        {
+            
+            var attempt = await _dbContext.Attempts.FindAsync(attemptId);
+            if (attempt == null)
+            {
+                return false;
+            }
+
+            // Update the LastAccessedOn timestamp
+            attempt.LastAccessedOn = DateTime.UtcNow;
+
+            // Store the full CMI data as JSON
+            attempt.AttemptStateJson = cmiData.ToString();
+
+            // Log the received data
+            _logger.LogDebug("Received data for commit: {Data}", cmiData.ToString());
+
+            // Update specific tracked fields from the CMI data
+            UpdateAttemptFromCmiData(attempt, cmiData);
+
+            // Save changes to the database
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
+
         private void UpdateAttemptFromCmiData(ScormAttempt attempt, JObject cmiData)
         {
             // Handle different SCORM versions
-            bool isScorm2004 = attempt.Course?.Version == "2004";
+            var isScorm2004 = attempt.Course?.Version == "2004";
 
             JObject cmi = cmiData["cmi"] as JObject ?? cmiData;
             JObject coreData = isScorm2004 ? cmi : cmi["core"] as JObject;
@@ -368,7 +378,7 @@ namespace ScormHost.Web.Services
             }
 
             // Update lesson_location (bookmark)
-            string lessonLocation = isScorm2004 ? coreData["location"]?.ToString() : coreData["lesson_location"]?.ToString();
+            var lessonLocation = isScorm2004 ? coreData["location"]?.ToString() : coreData["lesson_location"]?.ToString();
             
             if (!string.IsNullOrEmpty(lessonLocation))
             {
@@ -376,7 +386,7 @@ namespace ScormHost.Web.Services
             }
 
             // Update suspend_data (always under cmi, not core, for both SCORM 1.2 and 2004)
-            string suspendData = cmi["suspend_data"]?.ToString();
+            var suspendData = cmi["suspend_data"]?.ToString();
             if (!string.IsNullOrEmpty(suspendData))
             {
                 attempt.SuspendData = suspendData;
@@ -401,7 +411,7 @@ namespace ScormHost.Web.Services
             else
             {
                 // SCORM 1.2 uses lesson_status for both completion and success
-                string lessonStatus = coreData["lesson_status"]?.ToString();
+                var lessonStatus = coreData["lesson_status"]?.ToString();
                 if (!string.IsNullOrEmpty(lessonStatus))
                 {
                     // Map the lesson_status to both completion and success status
@@ -512,7 +522,7 @@ namespace ScormHost.Web.Services
             }
 
             // For incomplete attempts, try to calculate based on available data
-            decimal progressPercentage = 0m;
+            var progressPercentage = 0m;
 
             // Use score as progress indicator if available
             if (attempt.ScoreRaw.HasValue && attempt.ScoreMax.HasValue && attempt.ScoreMax.Value > 0)
@@ -602,13 +612,13 @@ namespace ScormHost.Web.Services
                 {
                     // SCORM 2004 format - this is a simplified version, you may need to enhance it
                     var time = new TimeSpan();
-                    int tIndex = timeString.IndexOf('T');
+                    var tIndex = timeString.IndexOf('T');
                     if (tIndex >= 0)
                     {
-                        string timeSection = timeString.Substring(tIndex + 1);
-                        int hoursIndex = timeSection.IndexOf('H');
-                        int minutesIndex = timeSection.IndexOf('M');
-                        int secondsIndex = timeSection.IndexOf('S');
+                        var timeSection = timeString.Substring(tIndex + 1);
+                        var hoursIndex = timeSection.IndexOf('H');
+                        var minutesIndex = timeSection.IndexOf('M');
+                        var secondsIndex = timeSection.IndexOf('S');
 
                         if (hoursIndex > 0)
                         {
@@ -650,5 +660,7 @@ namespace ScormHost.Web.Services
 
             return TimeSpan.Zero;
         }
+
+        #endregion
     }
 }

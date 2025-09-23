@@ -219,17 +219,5 @@ namespace ScormHost.Web.Controllers.Api
                 return StatusCode(500, new { error = "Failed to write log", details = ex.Message });
             }
         }
-
-        //public class PayloadWrapper
-        //{
-        //    public JObject payload { get; set; }
-
-        //    public PayloadWrapper() { }
-
-        //    public bool IsValid()
-        //    {
-        //        return payload != null;
-        //    }
-        //}
     }
 }

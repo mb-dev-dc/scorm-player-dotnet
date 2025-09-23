@@ -19,7 +19,7 @@ namespace ScormHostWeb.Tests
                 .Options);
 
             var loggerMock = new Mock<ILogger<ScormRuntimeService>>();
-            var service = new ScormRuntimeService(dbContext, loggerMock.Object, isTestEnvironment: true);
+            var service = new ScormRuntimeService(dbContext, loggerMock.Object);
 
             var userId = Guid.NewGuid();
             var courseId = Guid.NewGuid();
