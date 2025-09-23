@@ -1,8 +1,13 @@
-﻿@{
+﻿@model ScormHostWeb.Controllers.HomeIndexViewModel
+@{
     ViewData["Title"] = "Home Page";
 }
 
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
-    <p>Launch course  <a href="https://localhost:7281/scorm/launchTest">SHP SCORM 1.2</a>.</p>
+
+    @if (Model?.ShowLaunchCourse == true)
+    {
+        <p>Launch course <a href="@Model.LaunchCourseUrl">@Model.LaunchCourseText</a>.</p>
+    }
 </div>

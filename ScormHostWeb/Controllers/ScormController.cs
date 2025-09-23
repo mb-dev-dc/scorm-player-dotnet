@@ -1,46 +1,39 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using ScormHost.Web.Services;
+using ScormHostWeb.Helpers;
 using ScormHostWeb.Models;
-using System.Diagnostics;
 
 namespace ScormHost.Web.Controllers
 {
     // Removed [Authorize] to allow anonymous access during development
-    public class ScormController : Controller
+    public class ScormController (ScormRuntimeService runtimeService, IOptions<AppSettings> appSettings): Controller
     {
-        private readonly ScormRuntimeService _runtimeService;
-        private readonly ScormPackageService _scormPackageService;
-        private readonly AppSettings _appSettings;
-
-        public ScormController(ScormRuntimeService runtimeService, ScormPackageService scormPackageService, IOptions<AppSettings> appSettings)
-        {
-            _runtimeService = runtimeService;
-            _scormPackageService = scormPackageService;
-            _appSettings = appSettings.Value;
-        }
-
         public async Task<IActionResult> LaunchTest(bool forceNew = true)
         {
-            Guid userId = Guid.Parse(_appSettings.TestData.UserId);
-            Guid courseId = Guid.Parse(_appSettings.TestData.CourseId);
+            if (!DebugHelper.IsDebug)
+            {
+                return NotFound();
+            }
 
-            var launchInfo = await _runtimeService.LaunchCourseAsync(userId, courseId, false);
+            Guid userId = Guid.Parse(appSettings.Value.TestData.UserId);
+            Guid courseId = Guid.Parse(appSettings.Value.TestData.CourseId);
 
+            var launchInfo = await runtimeService.LaunchCourseAsync(userId, courseId, false);
             if (launchInfo == null)
             {
                 var defaultViewModel = new LaunchViewModel
                 {
                     CourseId = courseId,
                     UserId = userId,
-                    LaunchUrl = $"{_appSettings.TestData.CoursePath}?userId={userId}&courseId={courseId}"
+                    LaunchUrl = $"{appSettings.Value.TestData.CoursePath}?userId={userId}&courseId={courseId}"
                 };
 
                 return View("Launch", defaultViewModel);
             }
 
             var viewModel = BuildLaunchViewModel(launchInfo);
-            viewModel.LaunchUrl = $"{_appSettings.TestData.CoursePath}?userId={userId}&courseId={courseId}";
+            viewModel.LaunchUrl = $"{appSettings.Value.TestData.CoursePath}?userId={userId}&courseId={courseId}";
             return View("Launch", viewModel);
         }
 
@@ -65,7 +58,7 @@ namespace ScormHost.Web.Controllers
                 return RedirectToAction("Index", "Home"); // or redirect to sign in page
             }
 
-            var launchInfo = await _runtimeService.LaunchCourseAsync(userId, courseId.Value, forceNew);
+            var launchInfo = await runtimeService.LaunchCourseAsync(userId, courseId.Value, forceNew);
             return View(BuildLaunchViewModel(launchInfo));
         }
 
