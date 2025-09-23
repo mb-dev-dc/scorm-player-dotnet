@@ -1,25 +1,18 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using ScormHost.Web.Data;
 using ScormHostWeb.Models;
 using System.IO.Compression;
 
 namespace ScormHostWeb.Controllers
 {
-    public class CourseController : Controller
+    public class CourseController (ScormDbContext context, IWebHostEnvironment environment, IOptions<AppSettings> appSettings) : Controller
     {
-        private readonly ScormDbContext _context;
-        private readonly IWebHostEnvironment _environment;
-
-        public CourseController(ScormDbContext context, IWebHostEnvironment environment)
-        {
-            _context = context;
-            _environment = environment;
-        }
-
         public async Task<IActionResult> Index()
         {
-            var courses = await _context.Courses.ToListAsync();
+            var courses = await context.Courses.ToListAsync();
+            ViewBag.UseLaunchTestUrl = appSettings.Value.IsTestMode && Helpers.DebugHelper.IsDebugMode;
             return View(courses);
         }
 
@@ -84,7 +77,7 @@ namespace ScormHostWeb.Controllers
             try
             {
                 var courseId = Guid.NewGuid();
-                var courseFolderPath = Path.Combine(_environment.WebRootPath, "scorm-packages", courseId.ToString());
+                var courseFolderPath = Path.Combine(environment.WebRootPath, "scorm-packages", courseId.ToString());
 
                 Directory.CreateDirectory(courseFolderPath);
 
@@ -114,8 +107,8 @@ namespace ScormHostWeb.Controllers
                     LaunchScoId = "intro_sco_001", // todo: check if needed
                 };
 
-                _context.Courses.Add(course);
-                await _context.SaveChangesAsync();
+                context.Courses.Add(course);
+                await context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = $"Course '{title}' uploaded successfully!";
                 return RedirectToAction(nameof(Index));
@@ -132,7 +125,7 @@ namespace ScormHostWeb.Controllers
         [Route("Course/Delete/{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var course = await _context.Courses.FindAsync(id);
+            var course = await context.Courses.FindAsync(id);
             if (course == null)
             {
                 return NotFound();
@@ -140,14 +133,14 @@ namespace ScormHostWeb.Controllers
 
             try
             {
-                var courseFolderPath = Path.Combine(_environment.WebRootPath, course.PackagePath);
+                var courseFolderPath = Path.Combine(environment.WebRootPath, course.PackagePath);
                 if (Directory.Exists(courseFolderPath))
                 {
                     Directory.Delete(courseFolderPath, true);
                 }
 
-                _context.Courses.Remove(course);
-                await _context.SaveChangesAsync();
+                context.Courses.Remove(course);
+                await context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = $"Course '{course.Title}' deleted successfully!";
             }

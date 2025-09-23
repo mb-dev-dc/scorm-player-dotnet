@@ -238,7 +238,7 @@ namespace ScormHost.Web.Services
             }
 
             // in memory db does not support transaction
-            if (!DebugHelper.IsDebug)
+            if (!DebugHelper.IsDebugMode)
             {
                 using var transaction = await _dbContext.Database.BeginTransactionAsync();
                 try

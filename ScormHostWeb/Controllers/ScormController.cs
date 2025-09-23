@@ -9,22 +9,22 @@ namespace ScormHost.Web.Controllers
     // Removed [Authorize] to allow anonymous access during development
     public class ScormController (ScormRuntimeService runtimeService, IOptions<AppSettings> appSettings): Controller
     {
-        public async Task<IActionResult> LaunchTest(bool forceNew = true)
+        public async Task<IActionResult> LaunchTest(Guid? courseId, bool forceNew = true)
         {
-            if (!DebugHelper.IsDebug)
+            if (!DebugHelper.IsDebugMode)
             {
                 return NotFound();
             }
 
             Guid userId = Guid.Parse(appSettings.Value.TestData.UserId);
-            Guid courseId = Guid.Parse(appSettings.Value.TestData.CourseId);
+            var defaultCourseId = courseId.HasValue ? courseId : Guid.Parse(appSettings.Value.TestData.CourseId);
 
-            var launchInfo = await runtimeService.LaunchCourseAsync(userId, courseId, false);
+            var launchInfo = await runtimeService.LaunchCourseAsync(userId, defaultCourseId.Value, false);
             if (launchInfo == null)
             {
                 var defaultViewModel = new LaunchViewModel
                 {
-                    CourseId = courseId,
+                    CourseId = defaultCourseId.Value,
                     UserId = userId,
                     LaunchUrl = $"{appSettings.Value.TestData.CoursePath}?userId={userId}&courseId={courseId}"
                 };

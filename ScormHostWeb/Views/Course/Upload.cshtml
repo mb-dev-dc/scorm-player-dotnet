@@ -1,50 +1,125 @@
-i @{
+@{
     ViewData["Title"] = "Upload SCORM Package";
 }
 
 <div class="upload-page">
     <div class="upload-header">
-        <h2 class="upload-title">Upload SCORM Package</h2>
-        <p class="upload-subtitle">Upload a SCORM ZIP package to add a new course</p>
+        <div class="header-nav">
+            <a asp-action="Index" class="btn btn-back">
+                <i class="fas fa-arrow-left me-2"></i>Back to Courses
+            </a>
+        </div>
+        <div class="upload-title-section">
+            <h1 class="upload-main-title">
+                <i class="fas fa-cloud-upload-alt me-3"></i>
+                Upload SCORM Package
+            </h1>
+            <p class="upload-subtitle">Add a new course to your library by uploading a SCORM-compliant ZIP package</p>
+        </div>
     </div>
 
     <div class="upload-form-container">
-        <form asp-action="Upload" method="post" enctype="multipart/form-data" class="upload-form">
+        <div class="upload-progress-indicator">
+            <div class="progress-step active">
+                <div class="step-number">1</div>
+                <div class="step-label">Select File</div>
+            </div>
+            <div class="progress-line"></div>
+            <div class="progress-step">
+                <div class="step-number">2</div>
+                <div class="step-label">Upload & Process</div>
+            </div>
+            <div class="progress-line"></div>
+            <div class="progress-step">
+                <div class="step-number">3</div>
+                <div class="step-label">Complete</div>
+            </div>
+        </div>
+
+        <form asp-action="Upload" method="post" enctype="multipart/form-data" class="upload-form" id="uploadForm">
             @Html.AntiForgeryToken()
 
-            <div class="form-group mb-4">
-                <label for="title" class="form-label">Course Title *</label>
-                <input type="text" name="title" class="form-control" placeholder="Enter course title" required />
-                <div class="text-danger" id="title-error"></div>
+            <div class="form-section">
+                <div class="form-group">
+                    <label for="title" class="form-label">
+                        <i class="fas fa-tag me-2"></i>Course Title *
+                    </label>
+                    <input type="text" name="title" id="title" class="form-control enhanced-input"
+                           placeholder="Enter a descriptive title for your course" required />
+                    <div class="form-help">Choose a clear, descriptive name that identifies your course content</div>
+                    <div class="text-danger" id="title-error"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="scormPackage" class="form-label">
+                        <i class="fas fa-file-archive me-2"></i>SCORM Package *
+                    </label>
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <input type="file" id="scormPackage" name="scormPackage" class="file-input" accept=".zip" required />
+                        <div class="file-upload-content">
+                            <div class="upload-icon">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                            </div>
+                            <div class="upload-text">
+                                <strong>Click to browse</strong> or drag and drop your SCORM package here
+                            </div>
+                            <div class="upload-hint">ZIP files only • Max size: 100MB</div>
+                        </div>
+                        <div class="file-selected-info" id="fileSelectedInfo" style="display: none;">
+                            <div class="selected-file-icon">
+                                <i class="fas fa-file-archive"></i>
+                            </div>
+                            <div class="selected-file-details">
+                                <div class="file-name" id="selectedFileName"></div>
+                                <div class="file-size" id="selectedFileSize"></div>
+                            </div>
+                            <button type="button" class="remove-file-btn" id="removeFileBtn">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="text-danger" id="package-error"></div>
+                </div>
             </div>
 
-            <div class="form-group mb-4">
-                <label for="scormPackage" class="form-label">SCORM Package (ZIP) *</label>
-                <div class="file-upload-wrapper">
-                    <input type="file" id="scormPackage" name="scormPackage" class="form-control" accept=".zip" required />
-                    <div class="file-upload-info">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <span>Select a ZIP file containing your SCORM package</span>
+            <div class="requirements-section">
+                <div class="requirements-header">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <span>Package Requirements</span>
+                </div>
+                <div class="requirements-grid">
+                    <div class="requirement-item">
+                        <i class="fas fa-check requirement-icon"></i>
+                        <span>ZIP archive format</span>
+                    </div>
+                    <div class="requirement-item">
+                        <i class="fas fa-check requirement-icon"></i>
+                        <span>Contains imsmanifest.xml</span>
+                    </div>
+                    <div class="requirement-item">
+                        <i class="fas fa-check requirement-icon"></i>
+                        <span>SCORM 1.2 or 2004 compliant</span>
+                    </div>
+                    <div class="requirement-item">
+                        <i class="fas fa-check requirement-icon"></i>
+                        <span>Maximum size: 100MB</span>
                     </div>
                 </div>
-                <div class="text-danger" id="package-error"></div>
-            </div>
-
-            <div class="upload-requirements">
-                <h6>Requirements:</h6>
-                <ul>
-                    <li>File must be a ZIP archive</li>
-                    <li>Must contain a valid imsmanifest.xml file</li>
-                    <li>Should be a SCORM 1.2 or SCORM 2004 compliant package</li>
-                </ul>
             </div>
 
             <div class="form-actions">
-                <button type="submit" class="btn btn-upload">
-                    <i class="fas fa-upload me-2"></i>Upload Course
+                <button type="submit" class="btn btn-upload btn-primary-action" id="uploadBtn">
+                    <span class="btn-content">
+                        <i class="fas fa-cloud-upload-alt me-2"></i>
+                        <span class="btn-text">Upload Course</span>
+                    </span>
+                    <div class="btn-loading" style="display: none;">
+                        <i class="fas fa-spinner fa-spin me-2"></i>
+                        <span>Processing...</span>
+                    </div>
                 </button>
-                <a asp-action="Index" class="btn btn-secondary ms-2">
-                    <i class="fas fa-arrow-left me-2"></i>Back to Courses
+                <a asp-action="Index" class="btn btn-secondary-action">
+                    <i class="fas fa-times me-2"></i>Cancel
                 </a>
             </div>
         </form>
@@ -55,13 +130,105 @@ i @{
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 
     <script>
-        document.getElementById('scormPackage').addEventListener('change', function(e) {
-            const fileInfo = document.querySelector('.file-upload-info span');
-            if (e.target.files.length > 0) {
-                fileInfo.textContent = e.target.files[0].name;
-            } else {
-                fileInfo.textContent = 'Select a ZIP file containing your SCORM package';
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('scormPackage');
+            const fileUploadArea = document.getElementById('fileUploadArea');
+            const fileSelectedInfo = document.getElementById('fileSelectedInfo');
+            const selectedFileName = document.getElementById('selectedFileName');
+            const selectedFileSize = document.getElementById('selectedFileSize');
+            const removeFileBtn = document.getElementById('removeFileBtn');
+            const uploadForm = document.getElementById('uploadForm');
+            const uploadBtn = document.getElementById('uploadBtn');
+
+            // File upload area interactions
+            fileUploadArea.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            // Drag and drop functionality
+            fileUploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                fileUploadArea.classList.add('drag-over');
+            });
+
+            fileUploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                fileUploadArea.classList.remove('drag-over');
+            });
+
+            fileUploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                fileUploadArea.classList.remove('drag-over');
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    handleFileSelection(files[0]);
+                }
+            });
+
+            // File selection handler
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    handleFileSelection(e.target.files[0]);
+                }
+            });
+
+            // Remove file handler
+            removeFileBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                fileInput.value = '';
+                fileSelectedInfo.style.display = 'none';
+                fileUploadArea.querySelector('.file-upload-content').style.display = 'block';
+            });
+
+            // Form submission handler
+            uploadForm.addEventListener('submit', function(e) {
+                const btnContent = uploadBtn.querySelector('.btn-content');
+                const btnLoading = uploadBtn.querySelector('.btn-loading');
+
+                btnContent.style.display = 'none';
+                btnLoading.style.display = 'flex';
+                uploadBtn.disabled = true;
+
+                // Update progress indicator
+                const steps = document.querySelectorAll('.progress-step');
+                steps[1].classList.add('active');
+            });
+
+            function handleFileSelection(file) {
+                // Validate file type
+                if (!file.name.toLowerCase().endsWith('.zip')) {
+                    alert('Please select a ZIP file.');
+                    fileInput.value = '';
+                    return;
+                }
+
+                // Validate file size (100MB)
+                if (file.size > 100 * 1024 * 1024) {
+                    alert('File size must be less than 100MB.');
+                    fileInput.value = '';
+                    return;
+                }
+
+                // Show file info
+                selectedFileName.textContent = file.name;
+                selectedFileSize.textContent = formatFileSize(file.size);
+
+                fileUploadArea.querySelector('.file-upload-content').style.display = 'none';
+                fileSelectedInfo.style.display = 'flex';
             }
+
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // Auto-focus title input
+            document.getElementById('title').focus();
         });
     </script>
 }

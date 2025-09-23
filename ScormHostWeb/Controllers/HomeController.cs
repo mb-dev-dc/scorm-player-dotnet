@@ -9,23 +9,7 @@ namespace ScormHostWeb.Controllers
        
         public IActionResult Index()
         {
-            var viewModel = new HomeIndexViewModel();
-
-            if (appSettings.Value.IsTestMode)
-            {
-                viewModel.ShowLaunchCourse = true;
-                viewModel.LaunchCourseUrl = "/scorm/launchTest";
-                viewModel.LaunchCourseText = appSettings.Value.TestData.CourseTitle;
-            }
-
-            return View(viewModel);
+            return View();
         }
-    }
-
-    public class HomeIndexViewModel
-    {
-        public bool ShowLaunchCourse { get; set; }
-        public string LaunchCourseUrl { get; set; } = string.Empty;
-        public string LaunchCourseText { get; set; } = string.Empty;
     }
 }
