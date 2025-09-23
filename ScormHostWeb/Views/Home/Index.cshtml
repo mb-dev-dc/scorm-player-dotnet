@@ -1,13 +1,215 @@
-﻿@model ScormHostWeb.Controllers.HomeIndexViewModel
 @{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "EduSCORM - Learning Management System";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
+<div class="home-page">
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1 class="hero-title">
+                    <i class="fas fa-graduation-cap hero-icon"></i>
+                    EduSCORM Learning Platform
+                </h1>
+                <p class="hero-subtitle">
+                    Powerful SCORM-compliant Learning Management System for modern e-learning
+                </p>
+                <p class="hero-description">
+                    Upload, manage, and deliver interactive learning content with full SCORM 1.2 and 2004 support.
+                    Track learner progress and create engaging educational experiences.
+                </p>
+                <div class="hero-actions">
+                    <a asp-controller="Course" asp-action="Upload" class="btn btn-hero-primary">
+                        <i class="fas fa-cloud-upload-alt me-2"></i>Upload Your First Course
+                    </a>
+                    <a asp-controller="Course" asp-action="Index" class="btn btn-hero-secondary">
+                        <i class="fas fa-book me-2"></i>Browse Course Library
+                    </a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="learning-illustration">
+                    <div class="illustration-elements">
+                        <div class="element element-book">
+                            <i class="fas fa-book-open"></i>
+                        </div>
+                        <div class="element element-play">
+                            <i class="fas fa-play-circle"></i>
+                        </div>
+                        <div class="element element-chart">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="element element-users">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="element element-certificate">
+                            <i class="fas fa-certificate"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-    @if (Model?.ShowLaunchCourse == true)
-    {
-        <p>Launch course <a href="@Model.LaunchCourseUrl">@Model.LaunchCourseText</a>.</p>
-    }
+    <!-- Stats Section -->
+    <section class="stats-section">
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">@ViewBag.CourseCount</h3>
+                    <p class="stat-label">SCORM Packages</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">100%</h3>
+                    <p class="stat-label">SCORM Compliant</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">Fast</h3>
+                    <p class="stat-label">Content Delivery</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">Secure</h3>
+                    <p class="stat-label">Data Protection</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features-section">
+        <div class="features-container">
+            <div class="section-header">
+                <h2 class="section-title">Powerful Learning Management Features</h2>
+                <p class="section-subtitle">Everything you need to deliver exceptional e-learning experiences</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-upload"></i>
+                    </div>
+                    <h3 class="feature-title">Easy Upload</h3>
+                    <p class="feature-description">
+                        Simply upload your SCORM ZIP packages with automatic validation and deployment.
+                    </p>
+                    <ul class="feature-list">
+                        <li>Drag & drop interface</li>
+                        <li>Automatic validation</li>
+                        <li>Instant deployment</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <h3 class="feature-title">SCORM Support</h3>
+                    <p class="feature-description">
+                        Full compatibility with SCORM 1.2 and SCORM 2004 standards for maximum flexibility.
+                    </p>
+                    <ul class="feature-list">
+                        <li>SCORM 1.2 & 2004</li>
+                        <li>Runtime tracking</li>
+                        <li>Progress monitoring</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <h3 class="feature-title">Progress Tracking</h3>
+                    <p class="feature-description">
+                        Monitor learner progress with detailed analytics and completion tracking.
+                    </p>
+                    <ul class="feature-list">
+                        <li>Real-time analytics</li>
+                        <li>Completion tracking</li>
+                        <li>Score management</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <h3 class="feature-title">Mobile Ready</h3>
+                    <p class="feature-description">
+                        Responsive design ensures perfect learning experience on any device.
+                    </p>
+                    <ul class="feature-list">
+                        <li>Responsive design</li>
+                        <li>Touch-friendly</li>
+                        <li>Cross-browser support</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Getting Started Section -->
+    <section class="getting-started-section">
+        <div class="getting-started-container">
+            <div class="section-header">
+                <h2 class="section-title">Get Started in 3 Easy Steps</h2>
+                <p class="section-subtitle">Start delivering engaging learning content today</p>
+            </div>
+
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3 class="step-title">Upload Your Course</h3>
+                        <p class="step-description">
+                            Upload your SCORM-compliant ZIP package using our intuitive drag-and-drop interface.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3 class="step-title">Validate & Deploy</h3>
+                        <p class="step-description">
+                            Our system automatically validates your package and deploys it for immediate access.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3 class="step-title">Launch & Track</h3>
+                        <p class="step-description">
+                            Launch courses and track learner progress with comprehensive analytics and reporting.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cta-section">
+                <a asp-controller="Course" asp-action="Upload" class="btn btn-cta">
+                    <i class="fas fa-rocket me-2"></i>Start Your First Course
+                </a>
+            </div>
+        </div>
+    </section>
 </div>
