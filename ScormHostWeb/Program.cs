@@ -5,6 +5,8 @@ using Microsoft.IdentityModel.Tokens;
 using ScormHost.Web.Data;
 using System.Text; // Added for Encoding
 using ScormHostWeb.Models;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.IISIntegration;
 
 namespace ScormHostWeb;
 
@@ -18,9 +20,22 @@ public class Program
         // Add Services (Dependency Injection configuration)
         // Add MVC controllers with views (for UI pages)
         builder.Services.AddControllersWithViews();
-        
+
         // Update the code to ensure Razor Runtime Compilation is properly configured
         builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
+
+        // Configure file upload limits for SCORM packages
+        builder.Services.Configure<IISServerOptions>(options =>
+        {
+            options.MaxRequestBodySize = 100 * 1024 * 1024; // 100MB
+        });
+
+        builder.Services.Configure<FormOptions>(options =>
+        {
+            options.ValueLengthLimit = int.MaxValue;
+            options.MultipartBodyLengthLimit = 100 * 1024 * 1024; // 100MB
+            options.MultipartHeadersLengthLimit = int.MaxValue;
+        });
 
         // Add Minimal APIs support (needs endpoints API explorer if using Swagger, etc.)
         builder.Services.AddEndpointsApiExplorer();

@@ -1,0 +1,103 @@
+@model IEnumerable<ScormHostWeb.Models.ScormCourse>
+@{
+    ViewData["Title"] = "Course Management";
+}
+
+<div class="course-management">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="course-title">SCORM Course Management</h2>
+        <a asp-action="Upload" class="btn btn-upload">
+            <i class="fas fa-plus me-2"></i>Upload New Course
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="course-grid">
+        @if (Model.Any())
+        {
+            @foreach (var course in Model)
+            {
+                <div class="course-card">
+                    <div class="course-card-header">
+                        <h5 class="course-card-title">@course.Title</h5>
+                        <span class="course-version-badge">v@course.Version</span>
+                    </div>
+                    <div class="course-card-body">
+                        <p class="course-id"><strong>Course ID:</strong> @course.CourseId</p>
+                        <p class="course-path"><strong>Package Path:</strong> @course.PackagePath</p>
+                        @if (!string.IsNullOrEmpty(course.LaunchScoId))
+                        {
+                            <p class="course-launch"><strong>Launch SCO:</strong> @course.LaunchScoId</p>
+                        }
+                    </div>
+                    <div class="course-card-footer">
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                onclick="setDeleteCourse('@course.CourseId', '@course.Title')">
+                            <i class="fas fa-trash me-1"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="no-courses">
+                <div class="no-courses-icon">
+                    <i class="fas fa-folder-open"></i>
+                </div>
+                <h4>No Courses Found</h4>
+                <p>Upload your first SCORM package to get started.</p>
+                <a asp-action="Upload" class="btn btn-upload">
+                    <i class="fas fa-plus me-2"></i>Upload Course
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the course <strong id="courseToDelete"></strong>?</p>
+                <p class="text-danger">This action cannot be undone and will remove all associated files.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger">Delete Course</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function setDeleteCourse(courseId, courseTitle) {
+            document.getElementById('courseToDelete').textContent = courseTitle;
+            document.getElementById('deleteForm').action = '@Url.Action("Delete", "Course")/' + courseId;
+        }
+    </script>
+}
