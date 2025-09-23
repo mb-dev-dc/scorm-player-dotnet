@@ -82,11 +82,8 @@ namespace ScormHost.Web.Services
         /// <summary>
         /// Launches or resumes a course for a user
         /// </summary>
-        public async Task<LaunchInfo> LaunchCourseAsync(Guid userId, Guid courseId, bool forceNewAttempt = false)
+        public async Task<LaunchInfo?> LaunchCourseAsync(Guid userId, Guid courseId, bool forceNewAttempt = false)
         {
-
-            var courses = await _dbContext.Courses.ToListAsync();
-
             // Check that both user and course exist
             var course = await _dbContext.Courses.FindAsync(courseId);
             var user = await _dbContext.Users.FindAsync(userId);

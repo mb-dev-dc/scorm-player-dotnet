@@ -13,46 +13,35 @@ namespace ScormHost.Web.Controllers
         private readonly ScormPackageService _scormPackageService;
         private readonly AppSettings _appSettings;
 
-        public ScormController(ScormRuntimeService runtimeService, ScormPackageService scormPackageService,  IOptions<AppSettings> appSettings)
+        public ScormController(ScormRuntimeService runtimeService, ScormPackageService scormPackageService, IOptions<AppSettings> appSettings)
         {
             _runtimeService = runtimeService;
             _scormPackageService = scormPackageService;
             _appSettings = appSettings.Value;
         }
 
-        
         public async Task<IActionResult> LaunchTest(bool forceNew = true)
         {
             Guid userId = Guid.Parse(_appSettings.TestData.UserId);
             Guid courseId = Guid.Parse(_appSettings.TestData.CourseId);
 
             var launchInfo = await _runtimeService.LaunchCourseAsync(userId, courseId, false);
-            if(launchInfo == null)
+
+            if (launchInfo == null)
             {
-                ViewBag.CourseId = courseId;
-                ViewBag.UserId = userId;
-                ViewBag.LaunchUrl = $"{_appSettings.TestData.CoursePath}?userId={userId}&courseId={courseId}";
-                return View("Launch");
+                var defaultViewModel = new LaunchViewModel
+                {
+                    CourseId = courseId,
+                    UserId = userId,
+                    LaunchUrl = $"{_appSettings.TestData.CoursePath}?userId={userId}&courseId={courseId}"
+                };
+
+                return View("Launch", defaultViewModel);
             }
 
-            // Pass the launch information to the view
-            ViewBag.CourseId = courseId;
-            ViewBag.UserId = userId;
-            ViewBag.AttemptId = launchInfo.AttemptId;  // Explicitly pass the attemptId
-            ViewBag.LaunchUrl = $"{_appSettings.TestData.CoursePath}?userId={userId}&courseId={courseId}";
-            ViewBag.ResumeData = launchInfo.ResumeData; // Pass resume data to the view
-            ViewBag.CourseTitle = launchInfo.CourseTitle;
-
-            // Add resume status information for UI
-            var resumeData = launchInfo.ResumeData as dynamic;
-            ViewBag.IsResume = resumeData?.IsResume ?? false;
-            ViewBag.CompletionStatus = resumeData?.CompletionStatus ?? "not attempted";
-            ViewBag.LastAccessedOn = resumeData?.LastAccessedOn;
-            ViewBag.AttemptNumber = resumeData?.AttemptNumber ?? 1;
-            ViewBag.ScoreRaw = resumeData?.ScoreRaw;
-
-            return View("Launch");
-
+            var viewModel = BuildLaunchViewModel(launchInfo);
+            viewModel.LaunchUrl = $"{_appSettings.TestData.CoursePath}?userId={userId}&courseId={courseId}";
+            return View("Launch", viewModel);
         }
 
         public async Task<IActionResult> Launch(Guid? courseId, bool forceNew = true)
@@ -77,28 +66,27 @@ namespace ScormHost.Web.Controllers
             }
 
             var launchInfo = await _runtimeService.LaunchCourseAsync(userId, courseId.Value, forceNew);
+            return View(BuildLaunchViewModel(launchInfo));
+        }
 
-            // Pass the launch information to the view
-            ViewBag.CourseId = courseId.Value;
-            ViewBag.UserId = userId;
-            ViewBag.AttemptId = launchInfo.AttemptId;  // Explicitly pass the attemptId
-            ViewBag.LaunchUrl = System.Web.HttpUtility.HtmlDecode(launchInfo.LaunchUrl);
-            ViewBag.ResumeData = launchInfo.ResumeData; // Pass resume data to the view
-            ViewBag.CourseTitle = launchInfo.CourseTitle;
-
-            // Add resume status information for UI
+        private LaunchViewModel BuildLaunchViewModel(LaunchInfo launchInfo) 
+        {
             var resumeData = launchInfo.ResumeData as dynamic;
-            ViewBag.IsResume = resumeData?.IsResume ?? false;
-            ViewBag.CompletionStatus = resumeData?.CompletionStatus ?? "not attempted";
-            ViewBag.LastAccessedOn = resumeData?.LastAccessedOn;
-            ViewBag.AttemptNumber = resumeData?.AttemptNumber ?? 1;
-            ViewBag.ScoreRaw = resumeData?.ScoreRaw;
 
-            // Log the LaunchUrl for debugging
-            Console.WriteLine($"LaunchUrl: {ViewBag.LaunchUrl}");
-
-            return View();
-
+            return new LaunchViewModel
+            {
+                UserId = launchInfo.UserId,
+                CourseId = launchInfo.CourseId,
+                CourseTitle = launchInfo.CourseTitle,
+                AttemptId = launchInfo.AttemptId,
+                LaunchUrl = System.Web.HttpUtility.HtmlDecode(launchInfo.LaunchUrl),
+                ResumeData = launchInfo.ResumeData as dynamic,
+                IsResume = resumeData?.IsResume ?? false,
+                CompletionStatus = resumeData?.CompletionStatus ?? "not attempted",
+                LastAccessedOn = resumeData?.LastAccessedOn,
+                AttemptNumber = resumeData?.AttemptNumber ?? 1,
+                ScoreRaw = resumeData?.ScoreRaw
+            };
         }
     }
 }

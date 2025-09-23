@@ -1,12 +1,13 @@
+@model ScormHostWeb.Models.LaunchViewModel
 @{
     Layout = null;
-    var courseId = ViewBag.CourseId;
-    var userId = ViewBag.UserId;
-    var attemptId = ViewBag.AttemptId;
-    var resumeData = ViewBag.ResumeData != null ? Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.ResumeData) : "null";
+    var courseId = Model.CourseId;
+    var userId = Model.UserId;
+    var attemptId = Model.AttemptId;
+    var resumeData = Model.ResumeData != null ? Newtonsoft.Json.JsonConvert.SerializeObject(Model.ResumeData) : "null";
     
     // Use the LaunchUrl from the service if available, otherwise construct a fallback
-    var cleanUrl = ViewBag.LaunchUrl as string;
+    var cleanUrl = Model.LaunchUrl;
 
     // Validate that the service-generated URL contains required parameters
     bool hasValidUrl = !string.IsNullOrEmpty(cleanUrl);
@@ -42,26 +43,26 @@
     <title>SCORM Player - Development Mode</title>
 
     <!-- Meta tags for emergency parameter extraction -->
-    <meta name="scorm-attempt-id" content="@ViewBag.AttemptId" />
-    <meta name="scorm-course-id" content="@ViewBag.CourseId" />
-    <meta name="scorm-user-id" content="@ViewBag.UserId" />
+    <meta name="scorm-attempt-id" content="@Model.AttemptId" />
+    <meta name="scorm-course-id" content="@Model.CourseId" />
+    <meta name="scorm-user-id" content="@Model.UserId" />
 
     <!-- Expose resume data globally for the adapter BEFORE loading the adapter script -->
     <script>
         window.scormResumeData = @Html.Raw(resumeData);
 
         // Global variables for emergency parameter extraction
-        window.scormAttemptId = '@ViewBag.AttemptId';
-        window.scormCourseId = '@ViewBag.CourseId';
-        window.scormUserId = '@ViewBag.UserId';
+        window.scormAttemptId = '@Model.AttemptId';
+        window.scormCourseId = '@Model.CourseId';
+        window.scormUserId = '@Model.UserId';
 
         // Debug information
         window.scormDebugInfo = {
-            attemptId: '@ViewBag.AttemptId',
-            courseId: '@ViewBag.CourseId',
-            userId: '@ViewBag.UserId',
-            isResume: @(ViewBag.IsResume?.ToString().ToLower() ?? "false"),
-            originalLaunchUrl: '@ViewBag.LaunchUrl',
+            attemptId: '@Model.AttemptId',
+            courseId: '@Model.CourseId',
+            userId: '@Model.UserId',
+            isResume: @(Model.IsResume.ToString().ToLower()),
+            originalLaunchUrl: '@Model.LaunchUrl',
             finalUrl: '@cleanUrl',
             hasAttemptIdInUrl: '@cleanUrl'.includes('attemptId='),
             timestamp: new Date().toISOString()
@@ -79,19 +80,19 @@
     <div class="dev-mode-header">
         <div class="header-info">
             <span>SCORM Player - Development Mode</span>
-            @if (ViewBag.IsResume == true)
+            @if (Model.IsResume)
             {
                 <div class="resume-indicator">
                     <span class="resume-badge">RESUMING</span>
                     <div style="display: flex; flex-direction: column; gap: 2px;">
                         <span class="resume-details">
-                            Attempt @ViewBag.AttemptNumber |
-                            Status: @ViewBag.CompletionStatus |
-                            @if (ViewBag.ScoreRaw != null) { <text>Score: @ViewBag.ScoreRaw | </text> }
-                            Last accessed: @(ViewBag.LastAccessedOn != null ? ((DateTime)ViewBag.LastAccessedOn).ToString("MM/dd/yyyy HH:mm") : "Unknown")
+                            Attempt @Model.AttemptNumber |
+                            Status: @Model.CompletionStatus |
+                            @if (Model.ScoreRaw != null) { <text>Score: @Model.ScoreRaw | </text> }
+                            Last accessed: @(Model.LastAccessedOn != null ? Model.LastAccessedOn.Value.ToString("MM/dd/yyyy HH:mm") : "Unknown")
                         </span>
                         @{
-                            var resumeData = ViewBag.ResumeData as dynamic;
+                            var resumeData = Model.ResumeData as dynamic;
                             var progressPercent = resumeData?.ProgressPercentage ?? 0;
                         }
                         <div style="display: flex; align-items: center;">
@@ -120,7 +121,7 @@
         <div class="header-controls">
             <button id="toggle-console">Show Console</button>
             <button id="toggle-fullscreen">Fullscreen</button>
-            @if (ViewBag.IsResume == true)
+            @if (Model.IsResume)
             {
                 <button id="restart-course" class="restart-btn">Restart Course</button>
             }
@@ -204,7 +205,7 @@
                 restartBtn.addEventListener('click', function() {
                     if (confirm('Are you sure you want to restart this course? All progress will be lost.')) {
                         // Redirect to launch without the current attempt ID to force a new attempt
-                        window.location.href = '/Scorm/Launch?courseId=@ViewBag.CourseId&userId=@ViewBag.UserId&forceNew=true';
+                        window.location.href = '/Scorm/Launch?courseId=@Model.CourseId&userId=@Model.UserId&forceNew=true';
                     }
                 });
             }
@@ -231,13 +232,13 @@
                 console.error('Current URL: ' + iframeUrl);
             }
 
-            // Log ViewBag data for debugging
-            console.log('ViewBag data:');
-            console.log('- CourseId: @ViewBag.CourseId');
-            console.log('- UserId: @ViewBag.UserId');
-            console.log('- AttemptId: @ViewBag.AttemptId');
-            console.log('- IsResume: @ViewBag.IsResume');
-            console.log('- Original LaunchUrl: @ViewBag.LaunchUrl');
+            // Log ViewModel data for debugging
+            console.log('ViewModel data:');
+            console.log('- CourseId: @Model.CourseId');
+            console.log('- UserId: @Model.UserId');
+            console.log('- AttemptId: @Model.AttemptId');
+            console.log('- IsResume: @Model.IsResume');
+            console.log('- Original LaunchUrl: @Model.LaunchUrl');
 
             // Debug panel functionality
             debugToggle.addEventListener('click', function() {
