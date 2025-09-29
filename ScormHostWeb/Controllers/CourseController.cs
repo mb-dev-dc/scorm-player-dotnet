@@ -72,23 +72,16 @@ namespace ScormHostWeb.Controllers
                 return View();
             }
 
-            try
-            {
-                var response = await scormPackageService.Upload(scormPackage, title, environment.WebRootPath);
-                if (response != "success")
-                {
-                    ModelState.AddModelError("scormPackage", response);
-                    return View();
-                }
+            var uploadResult = await scormPackageService.Upload(scormPackage, title, environment.WebRootPath);
 
-                TempData["SuccessMessage"] = $"Course '{title}' uploaded successfully!";
-                return RedirectToAction(nameof(Index));
-            }
-            catch (Exception ex)
+            if (!uploadResult.IsSuccess)
             {
-                ModelState.AddModelError("", $"An error occurred while uploading the package: {ex.Message}");
+                ModelState.AddModelError("scormPackage", uploadResult.Message);
                 return View();
             }
+
+            TempData["SuccessMessage"] = $"Course '{title}' uploaded successfully!";
+            return RedirectToAction(nameof(Index));
         }
 
         [HttpPost]

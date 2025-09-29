@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ScormHost.Web.Data;
 using ScormHostWeb.Models;
-using System;
 using System.IO.Compression;
 
 namespace ScormHost.Web.Services
@@ -19,7 +18,6 @@ namespace ScormHost.Web.Services
             _dbContext = scormDbContext;
             _logger = logger;
         }
-
 
         public async Task<ScormCourse>GetById(Guid courseId)
         {
@@ -50,39 +48,52 @@ namespace ScormHost.Web.Services
             await _dbContext.SaveChangesAsync();
         }
 
-        public async Task<string> Upload(IFormFile scormPackage, string title, string path)
+        public async Task<ServiceResult<ScormCourse>> Upload(IFormFile scormPackage, string title, string path)
         {
-            var courseId = Guid.NewGuid();
-            var courseFolderPath = Path.Combine(path, "scorm-packages", courseId.ToString());
-
-            Directory.CreateDirectory(courseFolderPath);
-
-            var zipFilePath = Path.Combine(courseFolderPath, scormPackage.FileName);
-            using (var stream = new FileStream(zipFilePath, FileMode.Create))
+            try
             {
-                await scormPackage.CopyToAsync(stream);
+                var courseId = Guid.NewGuid();
+                var courseFolderPath = Path.Combine(path, "scorm-packages", courseId.ToString());
+
+                Directory.CreateDirectory(courseFolderPath);
+
+                var zipFilePath = Path.Combine(courseFolderPath, scormPackage.FileName);
+                using (var stream = new FileStream(zipFilePath, FileMode.Create))
+                {
+                    await scormPackage.CopyToAsync(stream);
+                }
+
+                ZipFile.ExtractToDirectory(zipFilePath, courseFolderPath);
+                File.Delete(zipFilePath);
+
+                var manifestPath = Path.Combine(courseFolderPath, "imsmanifest.xml");
+                if (!File.Exists(manifestPath))
+                {
+                    // Clean up the created directory if manifest is missing
+                    if (Directory.Exists(courseFolderPath))
+                    {
+                        Directory.Delete(courseFolderPath, true);
+                    }
+                    return ServiceResult<ScormCourse>.Failure("Invalid SCORM package. Missing imsmanifest.xml file.");
+                }
+
+                var course = new ScormCourse
+                {
+                    CourseId = courseId,
+                    Title = title,
+                    Version = "1.2",
+                    PackagePath = Path.Combine("scorm-packages", courseId.ToString() + "/index_lms.html"),
+                    LaunchScoId = "intro_sco_001", // todo: check if needed
+                };
+
+                var addedCourse = await Add(course);
+                return ServiceResult<ScormCourse>.Success(addedCourse);
             }
-
-            ZipFile.ExtractToDirectory(zipFilePath, courseFolderPath);
-            File.Delete(zipFilePath);
-
-            var manifestPath = Path.Combine(courseFolderPath, "imsmanifest.xml");
-            if (!File.Exists(manifestPath))
+            catch (Exception ex)
             {
-                return "Invalid SCORM package. Missing imsmanifest.xml file.";
+                _logger.LogError(ex, "Error occurred during SCORM package upload for title: {Title}", title);
+                return ServiceResult<ScormCourse>.Failure($"An error occurred while uploading the package: {ex.Message}");
             }
-
-            var course = new ScormCourse
-            {
-                CourseId = courseId,
-                Title = title,
-                Version = "1.2",
-                PackagePath = Path.Combine("scorm-packages", courseId.ToString() + "/index_lms.html"),
-                LaunchScoId = "intro_sco_001", // todo: check if needed
-            };
-
-            await Add(course);
-            return "success";
         }
 
         private async Task<ScormCourse> Add(ScormCourse course)

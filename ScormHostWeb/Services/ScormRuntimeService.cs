@@ -330,6 +330,7 @@ namespace ScormHost.Web.Services
                         current[keys[i]] = new JObject();
                     current = (JObject)current[keys[i]];
                 }
+
                 current[keys[^1]] = prop.Value;
             }
             return nested;
