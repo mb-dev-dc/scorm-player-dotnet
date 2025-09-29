@@ -1,17 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using ScormHost.Web.Data;
+using ScormHost.Web.Services;
 using ScormHostWeb.Models;
-using System.IO.Compression;
 
 namespace ScormHostWeb.Controllers
 {
-    public class CourseController (ScormDbContext context, IWebHostEnvironment environment, IOptions<AppSettings> appSettings) : Controller
+    public class CourseController (ScormPackageService scormPackageService, IWebHostEnvironment environment, IOptions<AppSettings> appSettings) : Controller
     {
         public async Task<IActionResult> Index()
         {
-            var courses = await context.Courses.ToListAsync();
+            var courses = await scormPackageService.GetAll();
             ViewBag.UseLaunchTestUrl = appSettings.Value.IsTestMode && Helpers.DebugHelper.IsDebugMode;
             return View(courses);
         }
@@ -76,39 +74,12 @@ namespace ScormHostWeb.Controllers
 
             try
             {
-                var courseId = Guid.NewGuid();
-                var courseFolderPath = Path.Combine(environment.WebRootPath, "scorm-packages", courseId.ToString());
-
-                Directory.CreateDirectory(courseFolderPath);
-
-                var zipFilePath = Path.Combine(courseFolderPath, scormPackage.FileName);
-                using (var stream = new FileStream(zipFilePath, FileMode.Create))
+                var response = await scormPackageService.Upload(scormPackage, title, environment.WebRootPath);
+                if (response != "success")
                 {
-                    await scormPackage.CopyToAsync(stream);
-                }
-
-                ZipFile.ExtractToDirectory(zipFilePath, courseFolderPath);
-                System.IO.File.Delete(zipFilePath);
-
-                var manifestPath = Path.Combine(courseFolderPath, "imsmanifest.xml");
-                if (!System.IO.File.Exists(manifestPath))
-                {
-                    Directory.Delete(courseFolderPath, true);
-                    ModelState.AddModelError("scormPackage", "Invalid SCORM package. Missing imsmanifest.xml file.");
+                    ModelState.AddModelError("scormPackage", response);
                     return View();
                 }
-
-                var course = new ScormCourse
-                {
-                    CourseId = courseId,
-                    Title = title,
-                    Version = "1.2",
-                    PackagePath = Path.Combine("scorm-packages", courseId.ToString() + "/index_lms.html"),
-                    LaunchScoId = "intro_sco_001", // todo: check if needed
-                };
-
-                context.Courses.Add(course);
-                await context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = $"Course '{title}' uploaded successfully!";
                 return RedirectToAction(nameof(Index));
@@ -125,24 +96,10 @@ namespace ScormHostWeb.Controllers
         [Route("Course/Delete/{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var course = await context.Courses.FindAsync(id);
-            if (course == null)
-            {
-                return NotFound();
-            }
-
             try
             {
-                var courseFolderPath = Path.Combine(environment.WebRootPath, course.PackagePath);
-                if (Directory.Exists(courseFolderPath))
-                {
-                    Directory.Delete(courseFolderPath, true);
-                }
-
-                context.Courses.Remove(course);
-                await context.SaveChangesAsync();
-
-                TempData["SuccessMessage"] = $"Course '{course.Title}' deleted successfully!";
+                await scormPackageService.Delete(id, environment.WebRootPath);
+                TempData["SuccessMessage"] = $"Course is deleted successfully!";
             }
             catch (Exception ex)
             {
