@@ -112,6 +112,24 @@ public class Program
         // Configure strongly typed settings
         builder.Services.Configure<AppSettings>(builder.Configuration);
 
+        // Register storage service based on configuration
+        builder.Services.AddScoped<IStorageService>(serviceProvider =>
+        {
+            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            var storageProvider = configuration["Storage:Provider"] ?? "LocalDisk";
+
+            return storageProvider.ToLower() switch
+            {
+                "azure" => serviceProvider.GetRequiredService<AzureStorageService>(),
+                "localdisk" => serviceProvider.GetRequiredService<LocalDiskStorageService>(),
+                _ => serviceProvider.GetRequiredService<LocalDiskStorageService>()
+            };
+        });
+
+        // Register concrete storage implementations
+        builder.Services.AddScoped<LocalDiskStorageService>();
+        builder.Services.AddScoped<AzureStorageService>();
+
         // Register application services (dependency injection for our custom services)
         builder.Services.AddScoped<ScormRuntimeService>(); // Handles SCORM runtime interactions
         builder.Services.AddScoped<ScormPackageService>(); // Handles course package management

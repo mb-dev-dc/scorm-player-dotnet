@@ -11,12 +11,14 @@ namespace ScormHost.Web.Services
     public class ScormPackageService
     {
         private readonly ScormDbContext _dbContext;
-        private readonly ILogger<ScormRuntimeService> _logger;
+        private readonly ILogger<ScormPackageService> _logger;
+        private readonly IStorageService _storageService;
 
-        public ScormPackageService (ScormDbContext scormDbContext, ILogger<ScormRuntimeService> logger)
+        public ScormPackageService(ScormDbContext scormDbContext, ILogger<ScormPackageService> logger, IStorageService storageService)
         {
             _dbContext = scormDbContext;
             _logger = logger;
+            _storageService = storageService;
         }
 
         public async Task<ScormCourse>GetById(Guid courseId)
@@ -31,18 +33,14 @@ namespace ScormHost.Web.Services
 
         public async Task Delete(Guid id, string path)
         {
-
             var course = await GetById(id);
-            if(course == null) 
+            if(course == null)
             {
                 ArgumentNullException.ThrowIfNull(course);
             }
 
-            var courseFolderPath = Path.Combine(path, course.PackagePath);
-            if (Directory.Exists(courseFolderPath))
-            {
-                Directory.Delete(courseFolderPath, true);
-            }
+            // Use storage service to delete the package
+            await _storageService.DeletePackageAsync(course.PackagePath);
 
             _dbContext.Courses.Remove(course);
             await _dbContext.SaveChangesAsync();
@@ -53,27 +51,23 @@ namespace ScormHost.Web.Services
             try
             {
                 var courseId = Guid.NewGuid();
-                var courseFolderPath = Path.Combine(path, "scorm-packages", courseId.ToString());
 
-                Directory.CreateDirectory(courseFolderPath);
+                // Use storage service to upload and extract package
+                var uploadResult = await _storageService.UploadAndExtractPackageAsync(scormPackage, courseId);
 
-                var zipFilePath = Path.Combine(courseFolderPath, scormPackage.FileName);
-                using (var stream = new FileStream(zipFilePath, FileMode.Create))
+                if (!uploadResult.IsSuccess)
                 {
-                    await scormPackage.CopyToAsync(stream);
+                    return ServiceResult<ScormCourse>.Failure(uploadResult.Message);
                 }
 
-                ZipFile.ExtractToDirectory(zipFilePath, courseFolderPath);
-                File.Delete(zipFilePath);
+                var packagePath = uploadResult.Data!;
 
-                var manifestPath = Path.Combine(courseFolderPath, "imsmanifest.xml");
-                if (!File.Exists(manifestPath))
+                // Check if manifest exists
+                var manifestExists = await _storageService.ManifestExistsAsync(packagePath);
+                if (!manifestExists)
                 {
-                    // Clean up the created directory if manifest is missing
-                    if (Directory.Exists(courseFolderPath))
-                    {
-                        Directory.Delete(courseFolderPath, true);
-                    }
+                    // Clean up the package if manifest is missing
+                    await _storageService.DeletePackageAsync(packagePath);
                     return ServiceResult<ScormCourse>.Failure("Invalid SCORM package. Missing imsmanifest.xml file.");
                 }
 
@@ -82,7 +76,7 @@ namespace ScormHost.Web.Services
                     CourseId = courseId,
                     Title = title,
                     Version = "1.2",
-                    PackagePath = Path.Combine("scorm-packages", courseId.ToString() + "/index_lms.html"),
+                    PackagePath = packagePath + "/index_lms.html",
                     LaunchScoId = "intro_sco_001", // todo: check if needed
                 };
 

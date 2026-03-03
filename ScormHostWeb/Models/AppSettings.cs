@@ -1,12 +1,13 @@
 namespace ScormHostWeb.Models
 {
     public class AppSettings
-    {   
+    {
         public DatabaseSettings Database { get; set; } = new();
         public JwtSettings Jwt { get; set; } = new();
         public bool IsTestMode { get; set; }
         public TestDataSettings TestData { get; set; } = new();
         public string AllowedHosts { get; set; } = "*";
+        public StorageSettings Storage { get; set; } = new();
     }
 
     public class DatabaseSettings
@@ -30,5 +31,16 @@ namespace ScormHostWeb.Models
         public string CourseTitle { get; set; } = string.Empty;
         public string CoursePath { get; set; } = string.Empty;
         public string CourseVersion { get; set; } = string.Empty;
+    }
+
+    public class StorageSettings
+    {
+        public string Provider { get; set; } = "LocalDisk"; // Options: "LocalDisk", "Azure"
+    }
+
+    public class AzureStorageSettings
+    {
+        public string ConnectionString { get; set; } = string.Empty;
+        public string ContainerName { get; set; } = "scorm-packages";
     }
 }
