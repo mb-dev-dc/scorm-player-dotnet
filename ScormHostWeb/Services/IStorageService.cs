@@ -27,5 +27,13 @@ namespace ScormHost.Web.Services
         /// <param name="packagePath">The path to the package</param>
         /// <returns>True if manifest exists, false otherwise</returns>
         Task<bool> ManifestExistsAsync(string packagePath);
+
+        /// <summary>
+        /// Opens a file from the extracted package as a stream
+        /// </summary>
+        /// <param name="packagePath">The path to the package</param>
+        /// <param name="fileName">Relative file name within the package</param>
+        /// <returns>File stream, or null if not found</returns>
+        Task<Stream?> ReadFileAsync(string packagePath, string fileName);
     }
 }

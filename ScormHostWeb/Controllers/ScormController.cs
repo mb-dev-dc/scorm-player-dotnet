@@ -33,9 +33,6 @@ namespace ScormHost.Web.Controllers
             }
 
             var viewModel = BuildLaunchViewModel(launchInfo);
-
-            //check why previous value is not working
-            viewModel.LaunchUrl = $"{appSettings.Value.TestData.CoursePath}?userId={userId}&courseId={courseId}";
             return View("Launch", viewModel);
         }
 

@@ -117,6 +117,24 @@ namespace ScormHost.Web.Services
             }
         }
 
+        public async Task<Stream?> ReadFileAsync(string packagePath, string fileName)
+        {
+            try
+            {
+                var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
+                var courseFolder = packagePath.Contains('/') ? packagePath.Split('/').Last() : packagePath;
+                var blobName = $"{courseFolder}/{fileName}";
+                var blobClient = containerClient.GetBlobClient(blobName);
+                if (!await blobClient.ExistsAsync()) return null;
+                var response = await blobClient.DownloadStreamingAsync();
+                return response.Value.Content;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private async Task UploadDirectoryToBlobAsync(BlobContainerClient containerClient, string localPath, string blobPrefix)
         {
             var files = Directory.GetFiles(localPath, "*", SearchOption.AllDirectories);

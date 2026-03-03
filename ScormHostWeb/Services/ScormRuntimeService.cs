@@ -144,9 +144,8 @@ namespace ScormHost.Web.Services
                 await _dbContext.SaveChangesAsync();
             }
 
-            // Construct the launch URL
-            string packagePath = course.PackagePath.TrimEnd('/');
-            string baseUrl = $"/scorm-packages/{Uri.EscapeDataString(courseId.ToString())}/{Uri.EscapeDataString(packagePath)}/";
+            // Construct the launch URL - always rooted at /scorm-packages/{courseId}/
+            string baseUrl = $"/scorm-packages/{courseId}/";
             string launchFile = null;
 
             // Use LaunchScoId to find the corresponding SCO
@@ -182,7 +181,7 @@ namespace ScormHost.Web.Services
                 }
             }
 
-            var launchUrl = baseUrl + Uri.EscapeDataString(launchFile);
+            var launchUrl = baseUrl + launchFile;
             // Use a format that's less likely to be HTML-encoded
             launchUrl += "?attemptId=" + attempt.AttemptId.ToString() 
                       + "&courseId=" + courseId.ToString()

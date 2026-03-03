@@ -67,5 +67,13 @@ namespace ScormHost.Web.Services
             var manifestPath = Path.Combine(_environment.WebRootPath, packagePath, "imsmanifest.xml");
             return Task.FromResult(File.Exists(manifestPath));
         }
+
+        public Task<Stream?> ReadFileAsync(string packagePath, string fileName)
+        {
+            var filePath = Path.Combine(_environment.WebRootPath, packagePath, fileName);
+            if (!File.Exists(filePath))
+                return Task.FromResult<Stream?>(null);
+            return Task.FromResult<Stream?>(File.OpenRead(filePath));
+        }
     }
 }

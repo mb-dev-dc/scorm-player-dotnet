@@ -37,8 +37,8 @@ namespace ScormHost.Web.Data
                     CourseId = Guid.Parse(appSettings.TestData.CourseId),
                     Title = appSettings.TestData.CourseTitle,
                     Version = appSettings.TestData.CourseVersion,
-                    PackagePath = appSettings.TestData.CoursePath,
-                    LaunchScoId = "intro_sco_001", // todo: check if needed
+                    PackagePath = $"scorm-packages/{appSettings.TestData.CourseId}",
+                    LaunchScoId = "intro_sco_001",
                 }
             };
 
@@ -53,7 +53,7 @@ namespace ScormHost.Web.Data
                     CourseId = courses[0].CourseId,
                     Identifier = "intro_sco_001",
                     Title = "SCORM Overview",
-                    LaunchFile = "content/lesson1/index.html"
+                    LaunchFile = "index_lms.html"
                 },
                 new ScormSco
                 {

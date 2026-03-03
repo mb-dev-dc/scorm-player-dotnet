@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using ScormHost.Web.Data;
 using ScormHostWeb.Models;
 using System.IO.Compression;
+using System.Xml.Linq;
 
 namespace ScormHost.Web.Services
 {
@@ -71,16 +72,41 @@ namespace ScormHost.Web.Services
                     return ServiceResult<ScormCourse>.Failure("Invalid SCORM package. Missing imsmanifest.xml file.");
                 }
 
+                // Parse manifest to find launch file and SCO identifier
+                string launchFile = "index_lms.html";
+                string launchScoId = "sco_1";
+                string version = "1.2";
+
+                var manifestStream = await _storageService.ReadFileAsync(packagePath, "imsmanifest.xml");
+                if (manifestStream != null)
+                {
+                    using (manifestStream)
+                    {
+                        (launchFile, launchScoId, version) = ParseManifest(manifestStream);
+                    }
+                }
+
                 var course = new ScormCourse
                 {
                     CourseId = courseId,
                     Title = title,
-                    Version = "1.2",
-                    PackagePath = packagePath + "/index_lms.html",
-                    LaunchScoId = "intro_sco_001", // todo: check if needed
+                    Version = version,
+                    PackagePath = packagePath, // storage path used for delete/manifest operations
+                    LaunchScoId = launchScoId,
                 };
 
                 var addedCourse = await Add(course);
+
+                await _dbContext.SCOs.AddAsync(new ScormSco
+                {
+                    ScoId = Guid.NewGuid(),
+                    CourseId = courseId,
+                    Identifier = launchScoId,
+                    Title = title,
+                    LaunchFile = launchFile,
+                });
+                await _dbContext.SaveChangesAsync();
+
                 return ServiceResult<ScormCourse>.Success(addedCourse);
             }
             catch (Exception ex)
@@ -88,6 +114,46 @@ namespace ScormHost.Web.Services
                 _logger.LogError(ex, "Error occurred during SCORM package upload for title: {Title}", title);
                 return ServiceResult<ScormCourse>.Failure($"An error occurred while uploading the package: {ex.Message}");
             }
+        }
+
+        private static (string launchFile, string launchScoId, string version) ParseManifest(Stream manifestStream)
+        {
+            string launchFile = "index_lms.html";
+            string launchScoId = "sco_1";
+            string version = "1.2";
+
+            try
+            {
+                var doc = XDocument.Load(manifestStream);
+
+                var schemaVersion = doc.Descendants()
+                    .FirstOrDefault(e => e.Name.LocalName == "schemaversion")?.Value ?? "";
+                if (schemaVersion.Contains("2004") || schemaVersion == "CAM 1.3")
+                    version = "2004";
+
+                var resources = doc.Descendants()
+                    .Where(e => e.Name.LocalName == "resource")
+                    .ToList();
+
+                // Prefer a resource explicitly marked as a SCO
+                var scoResource = resources.FirstOrDefault(r =>
+                    r.Attributes().Any(a => a.Name.LocalName == "scormtype" &&
+                                           a.Value.Equals("sco", StringComparison.OrdinalIgnoreCase)));
+
+                scoResource ??= resources.FirstOrDefault();
+
+                if (scoResource != null)
+                {
+                    launchFile = scoResource.Attribute("href")?.Value ?? launchFile;
+                    launchScoId = scoResource.Attribute("identifier")?.Value ?? launchScoId;
+                }
+            }
+            catch
+            {
+                // Return defaults if parsing fails
+            }
+
+            return (launchFile, launchScoId, version);
         }
 
         private async Task<ScormCourse> Add(ScormCourse course)
