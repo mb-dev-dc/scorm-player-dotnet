@@ -3,6 +3,23 @@
     padding: 0;
     height: 100%;
     font-family: Arial, sans-serif;
+    overflow: hidden;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+.site-header {
+    width: 100%;
+    flex-shrink: 0;
+}
+
+.site-header img {
+    display: block;
+    width: 100%;
+    height: auto;
 }
 
 .dev-mode-header {
@@ -137,8 +154,8 @@
 
 .debug-toggle {
     position: fixed;
-    top: 70px;
-    right: 320px;
+    top: 90px;
+    right: 150px;
     background: #333;
     color: white;
     border: none;
@@ -152,7 +169,7 @@
 #scorm-content {
     border: none;
     width: 100%;
-    height: calc(100vh - 60px);
+    height: 100%;
 }
 
 .hidden {
@@ -199,12 +216,13 @@
     }
 
 .iframe-container {
-    height: calc(100vh - 60px);
+    flex: 1;
+    overflow: hidden;
     transition: height 0.3s ease;
 }
 
     .iframe-container.with-console {
-        height: calc(100vh - 260px);
+        height: calc(100% - 200px);
     }
 
 .log-entry {

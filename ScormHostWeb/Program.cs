@@ -166,8 +166,8 @@ public class Program
         // Security-related middlewares
         app.UseHttpsRedirection();
         app.UseStaticFiles(); // Serve static files (CSS, JS, etc.)
-        
-        // Enable CORS with the relaxed policy
+
+                // Enable CORS with the relaxed policy
         app.UseCors("LMS-CORS");
         
         // REMOVE authentication and authorization middlewares for debugging
