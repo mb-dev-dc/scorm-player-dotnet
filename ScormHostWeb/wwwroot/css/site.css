@@ -62,6 +62,54 @@ body {
   --border-radius-xl: 16px;
 }
 
+/* Site Header Banner */
+.site-header-banner {
+  width: 100%;
+  background: #fff;
+  line-height: 0;
+}
+
+.site-header-image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Course Search Bar */
+.course-search-bar {
+  padding: 1.5rem 2rem 0;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.search-input-wrapper {
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-400);
+  font-size: 1.1rem;
+  pointer-events: none;
+}
+
+.search-input {
+  padding: 0.85rem 1rem 0.85rem 2.75rem;
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--gray-200);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+  font-size: 1.1rem;
+}
+
+.search-input:focus {
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
+}
+
 /* Course Management Layout */
 .course-management {
   padding: 0;
